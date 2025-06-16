@@ -1,13 +1,17 @@
 // App.js
 import React from 'react';
-import { Image, View, Text, StyleSheet } from 'react-native';
+import { Image, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
+
+import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
 import DetailScreen from './screens/DetailScreen';
 
 const Stack = createStackNavigator();
 
+// Komponen header kustom
 const LogoHeader = ({ title }) => (
   <View style={styles.headerContainer}>
     <Image source={require('./assets/jalanyuk.png')} style={styles.logo} />
@@ -19,24 +23,43 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        screenOptions={({ route }) => ({
-          headerTitle: () => (
-            <LogoHeader
-              title={
-                route.name === 'Beranda' ? 'Beranda' :
-                route.name === 'Detail' ? 'Detail Wisata' :
-                route.name
-              }
-            />
-          ),
-          headerStyle: {
-            backgroundColor: '#007bff',
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTintColor: '#fff',
-        })}
+        initialRouteName="Login"
+        screenOptions={({ route, navigation }) => {
+          const isLogin = route.name === 'Login';
+          const isDetail = route.name === 'Detail';
+          const showLogout = !isLogin && !isDetail;
+
+          return {
+            headerShown: !isLogin,
+            headerTitle: () => (
+              <LogoHeader
+                title={
+                  isDetail ? 'Detail Wisata' :
+                  route.name === 'Beranda' ? 'Beranda' :
+                  route.name
+                }
+              />
+            ),
+            headerRight: () => (
+              showLogout && (
+                <TouchableOpacity
+                  onPress={() => navigation.replace('Login')}
+                  style={styles.logoutButton}
+                >
+                  <Ionicons name="log-out-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+              )
+            ),
+            headerStyle: {
+              backgroundColor: '#007bff',
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+            headerTintColor: '#fff',
+          };
+        }}
       >
+        <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Beranda" component={HomeScreen} />
         <Stack.Screen name="Detail" component={DetailScreen} />
       </Stack.Navigator>
@@ -60,5 +83,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#fff',
     fontWeight: 'bold',
+  },
+  logoutButton: {
+    marginRight: 15,
   },
 });
