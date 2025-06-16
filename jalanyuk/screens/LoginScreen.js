@@ -17,7 +17,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    if (email === 'marchell' && password === '123') {
+    if (email === 'a' && password === '1') {
       navigation.replace('Beranda');
     } else {
       Alert.alert('Login Gagal', 'Email atau password salah');
