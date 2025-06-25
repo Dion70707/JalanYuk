@@ -6,22 +6,23 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showModal, setShowModal] = useState(false);
 
   const handleLogin = () => {
     if (email === 'a' && password === '1') {
       navigation.replace('Beranda');
     } else {
-      Alert.alert('Login Gagal', 'Email atau password salah');
+      setShowModal(true);
     }
   };
 
@@ -69,6 +70,27 @@ const LoginScreen = ({ navigation }) => {
               </Text>
             </Text>
           </View>
+
+          {/* Custom Modal Alert */}
+          <Modal
+            transparent
+            animationType="fade"
+            visible={showModal}
+            onRequestClose={() => setShowModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalIcon}>❌</Text>
+                <Text style={styles.modalTitle}>Failed</Text>
+                <Text style={styles.modalMessage}>
+                  Silahkan coba login atau koneksi kembali
+                </Text>
+                <TouchableOpacity style={styles.modalButton} onPress={() => setShowModal(false)}>
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -96,8 +118,8 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
     resizeMode: 'contain',
   },
   card: {
@@ -111,7 +133,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,
-    marginBottom: 90,
+    marginBottom: 150,
   },
   title: {
     fontSize: 30,
@@ -150,6 +172,54 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     color: '#007bff',
+    fontWeight: 'bold',
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 25,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalIcon: {
+    fontSize: 50,
+    color: '#e74c3c',
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 6,
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButton: {
+    backgroundColor: '#e74c3c',
+    borderRadius: 6,
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
