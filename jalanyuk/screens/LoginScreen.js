@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient'; // pastikan install: expo install expo-linear-gradient
+import { LinearGradient } from 'expo-linear-gradient';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -30,8 +30,14 @@ const LoginScreen = ({ navigation }) => {
         style={styles.inner}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.card}>
+        {/* Logo Card */}
+        <View style={styles.logoCard}>
           <Image source={require('../assets/jalanyuk.png')} style={styles.logo} />
+        </View>
+
+        {/* Login Form Card */}
+        <View style={styles.card}>
+          <Text style={styles.title}>Login</Text>
 
           <TextInput
             placeholder="Email"
@@ -52,12 +58,12 @@ const LoginScreen = ({ navigation }) => {
           />
 
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Masuk</Text>
+            <Text style={styles.buttonText}>Login</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
             <Text style={styles.registerText}>
-              Belum punya akun? <Text style={styles.registerLink}>Register</Text>
+              Don't have an account? <Text style={styles.registerLink}>Register</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -74,9 +80,22 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start', // agar layout mulai dari atas
     alignItems: 'center',
     padding: 20,
+    paddingTop: 100, // untuk memberi ruang dari atas layar
+  },
+  logoCard: {
+    width: '50%',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingTop: 50,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
   },
   card: {
     width: '100%',
@@ -90,14 +109,8 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
-  logo: {
-    width: 70,
-    height: 70,
-    resizeMode: 'contain',
-    marginBottom: 10,
-  },
   title: {
-    fontSize: 22,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 20,
