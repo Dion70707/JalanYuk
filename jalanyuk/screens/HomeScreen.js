@@ -111,8 +111,8 @@ const wisataList = [
   },
 ];
 
-
 const TABS = [
+  { key: 'Beranda', label: 'Beranda', icon: 'home' },
   { key: 'Favorit', label: 'Favorit', icon: 'heart' },
   { key: 'MyOrder', label: 'My Order', icon: 'ticket' },
   { key: 'Profile', label: 'Profile', icon: 'user' },
@@ -120,7 +120,7 @@ const TABS = [
 
 export default function HomeScreen({ navigation }) {
   const [search, setSearch] = useState('');
-  const [selectedTab, setSelectedTab] = useState('MyOrder');
+  const [selectedTab, setSelectedTab] = useState('Beranda');
 
   const filteredData = wisataList.filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase())
@@ -130,6 +130,8 @@ export default function HomeScreen({ navigation }) {
     setSelectedTab(tabKey);
     if (tabKey === 'Favorit') navigation.navigate('Favorit');
     else if (tabKey === 'Profile') navigation.navigate('Profile');
+    else if (tabKey === 'MyOrder') navigation.navigate('MyOrder');
+    // tab 'Beranda' tidak perlu pindah karena ini halaman saat ini
   };
 
   return (
