@@ -1,3 +1,4 @@
+// screens/Register.js
 import React, { useState } from 'react';
 import {
   View,
@@ -6,23 +7,34 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  Alert,
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const LoginScreen = ({ navigation }) => {
+const RegisterScreen = ({ navigation }) => {
+  const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    if (email === 'a' && password === '1') {
-      navigation.replace('Beranda');
-    } else {
-      Alert.alert('Login Gagal', 'Email atau password salah');
+  const handleRegister = () => {
+    if (!nama || !email || !password) {
+      Alert.alert('Registrasi Gagal', 'Semua kolom wajib diisi.');
+      return;
     }
+
+    Alert.alert('Registrasi Berhasil', 'Silakan login dengan akun Anda.', [
+      {
+        text: 'OK',
+        onPress: () => {
+          setTimeout(() => {
+            navigation.navigate('Login');
+          }, 200);
+        },
+      },
+    ]);
   };
 
   return (
@@ -38,7 +50,15 @@ const LoginScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.title}>Login</Text>
+            <Text style={styles.title}>Register</Text>
+
+            <TextInput
+              placeholder="Full Name"
+              placeholderTextColor="#aaa"
+              value={nama}
+              onChangeText={setNama}
+              style={styles.input}
+            />
 
             <TextInput
               placeholder="Email"
@@ -49,6 +69,7 @@ const LoginScreen = ({ navigation }) => {
               keyboardType="email-address"
               autoCapitalize="none"
             />
+
             <TextInput
               placeholder="Password"
               placeholderTextColor="#aaa"
@@ -58,16 +79,16 @@ const LoginScreen = ({ navigation }) => {
               secureTextEntry
             />
 
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Sign In</Text>
+            <TouchableOpacity style={styles.button} onPress={handleRegister}>
+              <Text style={styles.buttonText}>Sign Up</Text>
             </TouchableOpacity>
 
-            <Text style={styles.registerText}>
-              Don't have an account?{' '}
-              <Text style={styles.registerLink} onPress={() => navigation.navigate('Register')}>
-                Sign Up
-              </Text>
-            </Text>
+            <View style={styles.bottomText}>
+              <Text style={styles.registerText}>Have Account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.registerLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -75,7 +96,7 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
-export default LoginScreen;
+export default RegisterScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -143,12 +164,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
   },
+  bottomText: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
   registerText: {
     fontSize: 14,
     color: '#555',
-    textAlign: 'center',
   },
   registerLink: {
+    fontSize: 14,
     color: '#007bff',
     fontWeight: 'bold',
   },
