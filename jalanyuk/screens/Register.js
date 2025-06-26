@@ -1,4 +1,3 @@
-// screens/Register.js
 import React, { useState } from 'react';
 import {
   View,
@@ -11,13 +10,17 @@ import {
   Platform,
   Alert,
   ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 const RegisterScreen = ({ navigation }) => {
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleRegister = () => {
     if (!nama || !email || !password) {
@@ -44,53 +47,68 @@ const RegisterScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.logoCard}>
-            <Image source={require('../assets/jalanyuk.png')} style={styles.logo} />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.title}>Register</Text>
-
-            <TextInput
-              placeholder="Full Name"
-              placeholderTextColor="#aaa"
-              value={nama}
-              onChangeText={setNama}
-              style={styles.input}
-            />
-
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor="#aaa"
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <TextInput
-              placeholder="Password"
-              placeholderTextColor="#aaa"
-              value={password}
-              onChangeText={setPassword}
-              style={styles.input}
-              secureTextEntry
-            />
-
-            <TouchableOpacity style={styles.button} onPress={handleRegister}>
-              <Text style={styles.buttonText}>Sign Up</Text>
-            </TouchableOpacity>
-
-            <View style={styles.bottomText}>
-              <Text style={styles.registerText}>Have Account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.registerLink}>Sign In</Text>
-              </TouchableOpacity>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <View style={styles.logoCard}>
+              <Image source={require('../assets/jalanyuk.png')} style={styles.logo} />
             </View>
-          </View>
-        </ScrollView>
+
+            <View style={styles.card}>
+              <Text style={styles.title}>Register</Text>
+
+              <TextInput
+                placeholder="Full Name"
+                placeholderTextColor="#aaa"
+                value={nama}
+                onChangeText={setNama}
+                style={styles.input}
+              />
+
+              <TextInput
+                placeholder="Email"
+                placeholderTextColor="#aaa"
+                value={email}
+                onChangeText={setEmail}
+                style={styles.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor="#aaa"
+                  value={password}
+                  onChangeText={setPassword}
+                  style={styles.inputPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                    size={24}
+                    color="#777"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.button} onPress={handleRegister}>
+                <Text style={styles.buttonText}>Sign Up</Text>
+              </TouchableOpacity>
+
+              <View style={styles.bottomText}>
+                <Text style={styles.registerText}>Have Account? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                  <Text style={styles.registerLink}>Sign In</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
@@ -107,14 +125,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 100,
   },
   logoCard: {
     width: '50%',
-    backgroundColor: 'transparent',
     alignItems: 'center',
     marginBottom: 20,
-    paddingTop: 50,
   },
   logo: {
     width: 90,
@@ -132,7 +147,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,
-    marginBottom: 80,
   },
   title: {
     fontSize: 30,
@@ -150,6 +164,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    backgroundColor: '#f9f9f9',
+    width: '100%',
+    height: 50,
+    marginBottom: 15,
+  },
+  inputPassword: {
+    flex: 1,
+    fontSize: 16,
   },
   button: {
     width: '100%',

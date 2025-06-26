@@ -1,24 +1,20 @@
-// App.js
 import React from 'react';
-import { Image, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/Register';
 import HomeScreen from './screens/HomeScreen';
 import DetailScreen from './screens/DetailScreen';
-import RegisterScreen from './screens/Register';
+import AdminScreen from './screens/AdminScreen';
+
+import RoleIndex from './master/Role/Index';
+import AddRole from './master/Role/Add';
+import Header from './components/Header';
 
 const Stack = createNativeStackNavigator();
-
-const LogoHeader = ({ title }) => (
-  <View style={styles.headerContainer}>
-    <Image source={require('./assets/jalanyuk.png')} style={styles.logo} />
-    <Text style={styles.headerTitle}>{title}</Text>
-  </View>
-);
 
 export default function App() {
   return (
@@ -27,72 +23,84 @@ export default function App() {
         <Stack.Navigator
           initialRouteName="Splash"
           screenOptions={({ route, navigation }) => {
-            const isLogin = route.name === 'Login';
-            const isDetail = route.name === 'Detail';
-            const showLogout = !isLogin && !isDetail;
+            const hiddenHeaderScreens = ['Splash', 'Login', 'Register'];
+            const noLogoutScreens = ['Detail'];
+            const useHeader = !hiddenHeaderScreens.includes(route.name);
+            const showLogout = useHeader && !noLogoutScreens.includes(route.name);
+
+            const titleMap = {
+              Splash: '',
+              Login: '',
+              Register: '',
+              Detail: 'Detail Wisata',
+              Beranda: 'Beranda',
+              Admin: 'Dashboard',
+              RoleIndex: 'Master Role',
+              AddRole: 'Master Role',
+            };
 
             return {
               animation: 'slide_from_left',
-              headerShown: route.name !== 'Splash' && route.name !== 'Login' && route.name !== 'Register',
-              headerTitle: () => (
-                <LogoHeader
-                  title={
-                    isDetail ? 'Detail Wisata' :
-                      route.name === 'Beranda' ? 'Beranda' :
-                        route.name
-                  }
-                />
-              ),
-              headerRight: () =>
-                showLogout && (
-                  <TouchableOpacity
-                    onPress={() => navigation.replace('Login')}
-                    style={styles.logoutButton}
-                  >
-                    <Ionicons name="log-out-outline" size={24} color="#fff" />
-                  </TouchableOpacity>
-                ),
+              headerShown: useHeader,
+              headerTitle: () =>
+                useHeader ? (
+                  <Header
+                    title={titleMap[route.name] || route.name}
+                    showLogout={showLogout}
+                    onLogout={() => navigation.replace('Login')}
+                  />
+                ) : null,
               headerStyle: {
                 backgroundColor: '#007bff',
               },
               headerTintColor: '#fff',
+              headerRight: () => null,
             };
           }}
         >
-          <Stack.Screen name="Splash" component={SplashScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="Splash"
+            component={SplashScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Register"
+            component={RegisterScreen}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
             name="Beranda"
             component={HomeScreen}
             options={{ headerBackVisible: false }}
           />
-          <Stack.Screen name="Detail" component={DetailScreen} />
+          <Stack.Screen
+            name="Detail"
+            component={DetailScreen}
+            options={{ headerBackVisible: true }}
+          />
+          <Stack.Screen
+            name="Admin"
+            component={AdminScreen}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="RoleIndex"
+            component={RoleIndex}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="AddRole"
+            component={AddRole}
+            options={{ headerBackVisible: false }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
+
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 10,
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    resizeMode: 'contain',
-    marginRight: 8,
-    marginLeft: -19,
-  },
-  headerTitle: {
-    fontSize: 18,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  logoutButton: {
-    marginRight: 15,
-  },
-});
