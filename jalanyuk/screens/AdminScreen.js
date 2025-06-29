@@ -36,6 +36,8 @@ const AdminScreen = () => {
               onPress={() => {
                 if (item.title === 'Role') {
                   navigation.navigate('RoleIndex');
+                }else if (item.title === 'Pengguna') {
+                  navigation.navigate('PenggunaIndex');
                 }
               }}
             >

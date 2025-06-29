@@ -5,39 +5,57 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
+  SafeAreaView,
+  Platform,
+  StatusBar,
   ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard,
+  KeyboardAvoidingView,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { createPengguna } from '../API'; // sesuaikan path
 
 const RegisterScreen = ({ navigation }) => {
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false); // ⬅️ State loading
+  const idRole = 2; // default untuk Pengunjung
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!nama || !email || !password) {
       Alert.alert('Registrasi Gagal', 'Semua kolom wajib diisi.');
       return;
     }
 
-    Alert.alert('Registrasi Berhasil', 'Silakan login dengan akun Anda.', [
-      {
-        text: 'OK',
-        onPress: () => {
-          setTimeout(() => {
-            navigation.navigate('Login');
-          }, 200);
+    const newPengguna = {
+      nama_lengkap: nama,
+      email,
+      password,
+      id_role: idRole,
+      created_by: 'unknown',
+      created_date: new Date().toISOString().split('T')[0],
+    };
+
+    try {
+      setLoading(true); // ⬅️ Mulai loading
+      await createPengguna(newPengguna);
+      setLoading(false); // ⬅️ Selesai loading
+      Alert.alert('Registrasi Berhasil', 'Silakan login dengan akun Anda.', [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('Login'),
         },
-      },
-    ]);
+      ]);
+    } catch (error) {
+      setLoading(false); // ⬅️ Selesai loading walau error
+      console.log(error);
+      Alert.alert('Error', 'Gagal menambahkan pengguna.');
+    }
   };
 
   return (
@@ -47,69 +65,71 @@ const RegisterScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-          >
-            <View style={styles.logoCard}>
-              <Image source={require('../assets/jalanyuk.png')} style={styles.logo} />
-            </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <View style={styles.card}>
+            <Text style={styles.title}>Register</Text>
 
-            <View style={styles.card}>
-              <Text style={styles.title}>Register</Text>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              value={nama}
+              onChangeText={setNama}
+              placeholder="Masukkan nama lengkap"
+            />
 
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Masukkan email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordContainer}>
               <TextInput
-                placeholder="Full Name"
-                placeholderTextColor="#aaa"
-                value={nama}
-                onChangeText={setNama}
-                style={styles.input}
+                style={styles.inputPassword}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Masukkan password"
+                secureTextEntry={!showPassword}
               />
-
-              <TextInput
-                placeholder="Email"
-                placeholderTextColor="#aaa"
-                value={email}
-                onChangeText={setEmail}
-                style={styles.input}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  placeholder="Password"
-                  placeholderTextColor="#aaa"
-                  value={password}
-                  onChangeText={setPassword}
-                  style={styles.inputPassword}
-                  secureTextEntry={!showPassword}
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={24}
+                  color="#777"
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                    size={24}
-                    color="#777"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity style={styles.button} onPress={handleRegister}>
-                <Text style={styles.buttonText}>Sign Up</Text>
               </TouchableOpacity>
-
-              <View style={styles.bottomText}>
-                <Text style={styles.registerText}>Have Account? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                  <Text style={styles.registerLink}>Sign In</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
+
+            <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+              <Text style={styles.buttonText}>Sign Up</Text>
+            </TouchableOpacity>
+
+            <View style={styles.bottomText}>
+              <Text style={styles.registerText}>Have Account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.registerLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Modal loading */}
+      <Modal visible={loading} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#ffffff" />
+          <Text style={styles.loadingText}>Registering...</Text>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -123,25 +143,12 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
   },
-  logoCard: {
-    width: '50%',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logo: {
-    width: 90,
-    height: 90,
-    resizeMode: 'contain',
-  },
   card: {
-    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 25,
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.1,
@@ -153,9 +160,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 20,
+    textAlign: 'center',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 6,
+    color: '#333',
   },
   input: {
-    width: '100%',
     height: 50,
     borderColor: '#ddd',
     borderWidth: 1,
@@ -173,7 +186,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     backgroundColor: '#f9f9f9',
-    width: '100%',
     height: 50,
     marginBottom: 15,
   },
@@ -182,7 +194,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    width: '100%',
     backgroundColor: '#007bff',
     paddingVertical: 15,
     borderRadius: 12,
@@ -206,5 +217,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007bff',
     fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#fff',
+    fontSize: 16,
   },
 });

@@ -11,7 +11,9 @@ import DetailScreen from './screens/DetailScreen';
 import AdminScreen from './screens/AdminScreen';
 
 import RoleIndex from './master/Role/Index';
+import PenggunaIndex from './master/Pengguna/Index';
 import AddRole from './master/Role/Add';
+import AddPengguna from './master/Pengguna/Add';
 import Header from './components/Header';
 
 const Stack = createNativeStackNavigator();
@@ -37,6 +39,8 @@ export default function App() {
               Admin: 'Dashboard',
               RoleIndex: 'Master Role',
               AddRole: 'Master Role',
+              PenggunaIndex: 'Master Pengguna',
+            
             };
 
             return {
@@ -94,8 +98,18 @@ export default function App() {
             options={{ headerBackVisible: false }}
           />
           <Stack.Screen
+            name="PenggunaIndex"
+            component={PenggunaIndex}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
             name="AddRole"
             component={AddRole}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="AddPengguna"
+            component={AddPengguna}
             options={{ headerBackVisible: false }}
           />
         </Stack.Navigator>

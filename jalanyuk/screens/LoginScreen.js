@@ -15,21 +15,41 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { getAllPenggunas } from '../API';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (email === 'admin' && password === '1') {
-      navigation.replace('Admin');
-    } else if (email === 'customer' && password === '1') {
-      navigation.replace('Beranda');
-    } else {
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setShowModal(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const users = await getAllPenggunas();
+      const user = users.find(
+        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      );
+      if (user) {
+        if (user.id_role === 1) {
+          navigation.replace('Admin');
+        } else {
+          navigation.replace('Beranda');
+        }
+      } else {
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.log('Login error:', error);
       setShowModal(true);
     }
+    setLoading(false);
   };
 
   return (
@@ -80,8 +100,12 @@ const LoginScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                <Text style={styles.buttonText}>Sign In</Text>
+              <TouchableOpacity
+                style={[styles.button, loading && { opacity: 0.7 }]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                <Text style={styles.buttonText}>{loading ? 'Loading...' : 'Sign In'}</Text>
               </TouchableOpacity>
 
               <Text style={styles.registerText}>
@@ -106,7 +130,10 @@ const LoginScreen = ({ navigation }) => {
                   <Text style={styles.modalMessage}>
                     Email atau password salah. Silakan coba lagi.
                   </Text>
-                  <TouchableOpacity style={styles.modalButton} onPress={() => setShowModal(false)}>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => setShowModal(false)}
+                  >
                     <Text style={styles.modalButtonText}>OK</Text>
                   </TouchableOpacity>
                 </View>
