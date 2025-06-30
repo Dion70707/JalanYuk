@@ -16,6 +16,7 @@ import AddRole from './master/Role/Add';
 import AddPengguna from './master/Pengguna/Add';
 import Header from './components/Header';
 import Detail from './master/Pengguna/Detail';
+import Edit from './master/Pengguna/Edit';
 import ProfileScreen from './screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();

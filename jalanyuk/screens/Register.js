@@ -5,10 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  SafeAreaView,
   Platform,
-  StatusBar,
   ScrollView,
   KeyboardAvoidingView,
   ActivityIndicator,
@@ -17,18 +14,22 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { createPengguna } from '../API'; // sesuaikan path
+import Notifikasi from '../components/Notifikasi'; // sesuaikan path
 
 const RegisterScreen = ({ navigation }) => {
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false); // ⬅️ State loading
-  const idRole = 2; // default untuk Pengunjung
+  const [loading, setLoading] = useState(false);
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [notifMessage, setNotifMessage] = useState('');
+  const idRole = 2;
 
   const handleRegister = async () => {
     if (!nama || !email || !password) {
-      Alert.alert('Registrasi Gagal', 'Semua kolom wajib diisi.');
+      setNotifMessage('Semua kolom wajib diisi.');
+      setNotifVisible(true);
       return;
     }
 
@@ -42,19 +43,22 @@ const RegisterScreen = ({ navigation }) => {
     };
 
     try {
-      setLoading(true); // ⬅️ Mulai loading
+      setLoading(true);
       await createPengguna(newPengguna);
-      setLoading(false); // ⬅️ Selesai loading
-      Alert.alert('Registrasi Berhasil', 'Silakan login dengan akun Anda.', [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Login'),
-        },
-      ]);
+      setLoading(false);
+
+      setNotifMessage('Registrasi berhasil!');
+      setNotifVisible(true);
+
+      setTimeout(() => {
+        setNotifVisible(false);
+        navigation.navigate('Login');
+      }, 2000);
     } catch (error) {
-      setLoading(false); // ⬅️ Selesai loading walau error
+      setLoading(false);
       console.log(error);
-      Alert.alert('Error', 'Gagal menambahkan pengguna.');
+      setNotifMessage('Gagal menambahkan pengguna.');
+      setNotifVisible(true);
     }
   };
 
@@ -109,7 +113,11 @@ const RegisterScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleRegister}
+              disabled={loading}
+            >
               <Text style={styles.buttonText}>Sign Up</Text>
             </TouchableOpacity>
 
@@ -130,6 +138,14 @@ const RegisterScreen = ({ navigation }) => {
           <Text style={styles.loadingText}>Registering...</Text>
         </View>
       </Modal>
+
+      {/* Notifikasi */}
+      <Notifikasi
+        visible={notifVisible}
+        message={notifMessage}
+        onClose={() => setNotifVisible(false)}
+        type={notifMessage.includes('berhasil') ? 'success' : 'error'}
+      />
     </LinearGradient>
   );
 };

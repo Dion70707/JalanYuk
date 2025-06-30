@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://172.20.10.3:8080';
+const BASE_URL = 'http://192.168.43.81:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -12,16 +12,17 @@ const api = axios.create({
 });
 
 // ====== ROLE API ======
-export const getAllRoles = async () => {
+export const getAllRoles = async (status) => {
   try {
-    const response = await api.get('/roles');
+    const response = await api.get('/roles', {
+      params: { status }, // ✅ pastikan status dikirim sebagai query param
+    });
     return response.data;
   } catch (error) {
     console.error('Error fetching roles:', error);
     throw error;
   }
 };
-
 
 export const getRoleById = async (id) => {
   try {
@@ -47,7 +48,9 @@ export const createRole = async (role) => {
 
 export const updateRole = async (role) => {
   try {
-    const response = await api.put('/role', role);
+    const response = await api.put('/role', role, {
+      params: { id: role.id_role }, // ✅ tambahkan id sebagai query param
+    });
     return response.data;
   } catch (error) {
     console.error('Error updating role:', error);
@@ -67,14 +70,26 @@ export const deleteRole = async (id) => {
   }
 };
 
-
-
-export const getAllPenggunas = async () => {
+export const toggleRoleStatus = async (id, status) => {
   try {
-    const response = await api.get('/penggunas');
+    const response = await api.put('/role/status', null, {
+      params: { id, status },
+    });
     return response.data;
   } catch (error) {
-    console.error('Error fetching penggunas:', error);
+    console.error('Error toggling role status:', error);
+    throw error;
+  }
+};
+
+export const getAllPenggunas = async (status) => {
+  try {
+    const response = await api.get('/penggunas', {
+      params: { status }, // ✅ pastikan status dikirim sebagai query param
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching roles:', error);
     throw error;
   }
 };
@@ -119,6 +134,18 @@ export const deletePengguna = async (id) => {
     return response.data;
   } catch (error) {
     console.error(`Error deleting pengguna with id ${id}:`, error);
+    throw error;
+  }
+};
+
+export const togglePenggunaStatus = async (id, status) => {
+  try {
+    const response = await api.put('/pengguna/status', null, {
+      params: { id, status },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error toggling role status:', error);
     throw error;
   }
 };
