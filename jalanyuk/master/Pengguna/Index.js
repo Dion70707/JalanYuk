@@ -9,11 +9,7 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
-import {
-  useNavigation,
-  useFocusEffect,
-  useRoute,
-} from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { getAllPenggunas, deletePengguna, getAllRoles } from '../../API';
 import { Ionicons } from '@expo/vector-icons';
 import Tab from '../../components/Tab';
@@ -61,26 +57,16 @@ const Index = () => {
     }
   };
 
-useFocusEffect(
-  useCallback(() => {
-    fetchPenggunas();
-    fetchRoles();
-
-    setTimeout(() => {
-      console.log('ISI PENGGUNAS:', penggunas);
-      console.log('ISI ROLES:', roles);
-    }, 1000); // delay sedikit agar state ter-update
-  }, [route.params])
-);
-
-  const filteredPenggunas = penggunas
-  .filter((pengguna) => pengguna.status === 'Aktif')
-  .filter((pengguna) =>
-    (pengguna?.nama_lengkap ?? '')
-      .toLowerCase()
-      .includes(search.toLowerCase())
+  useFocusEffect(
+    useCallback(() => {
+      fetchPenggunas();
+      fetchRoles();
+    }, [route.params])
   );
 
+  const filteredPenggunas = penggunas.filter((pengguna) =>
+    (pengguna?.nama_lengkap ?? '').toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleDelete = async (id) => {
     if (!id) {
@@ -112,17 +98,31 @@ useFocusEffect(
     const roleName =
       roles.find((r) => r.id === item.id_role)?.nama_role || 'Role tidak ditemukan';
 
+
     return (
-      <View style={styles.itemContainer}>
-        <View>
-          <Text style={styles.itemText}>{item.nama_lengkap}</Text>
-          <Text style={styles.itemText}>{item.email}</Text>
-          <Text style={styles.itemText}>{roleName}</Text>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('DetailPengguna', { pengguna: item, roleName })}
+        activeOpacity={0.7}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.nameText}>{item.nama_lengkap}</Text>
+          <Text style={styles.emailText}>{item.email}</Text>
+          <Text style={styles.roleText}>{roleName}</Text>
         </View>
-        <TouchableOpacity onPress={() => handleDelete(item.id)}>
+
+        
+
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation(); // supaya tombol delete gak memicu navigasi card
+            handleDelete(item.id);
+          }}
+          style={styles.deleteButton}
+        >
           <Ionicons name="trash" size={24} color="red" />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -181,17 +181,57 @@ const styles = StyleSheet.create({
     padding: 10,
     margin: 16,
   },
-  itemContainer: {
-    backgroundColor: '#f9f9f9',
-    borderBottomWidth: 1,
-    borderColor: '#eee',
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 12,
     padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+
+    elevation: 3,
+
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  itemText: {
-    fontSize: 16,
+  nameText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+    color: '#333',
+  },
+  emailText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  roleText: {
+    fontSize: 14,
+    color: '#888',
+    fontStyle: 'italic',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    marginLeft: 8,
   },
   fab: {
     position: 'absolute',

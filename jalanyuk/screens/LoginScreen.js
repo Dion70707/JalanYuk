@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';  // Import AsyncStorage
 import { getAllPenggunas } from '../API';
 
 const LoginScreen = ({ navigation }) => {
@@ -37,6 +38,9 @@ const LoginScreen = ({ navigation }) => {
         (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
       );
       if (user) {
+        // Simpan userId ke AsyncStorage
+        await AsyncStorage.setItem('userId', user.id.toString());
+
         if (user.id_role === 1) {
           navigation.replace('Admin');
         } else {

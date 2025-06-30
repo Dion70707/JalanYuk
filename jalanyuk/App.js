@@ -15,6 +15,8 @@ import PenggunaIndex from './master/Pengguna/Index';
 import AddRole from './master/Role/Add';
 import AddPengguna from './master/Pengguna/Add';
 import Header from './components/Header';
+import Detail from './master/Pengguna/Detail';
+import ProfileScreen from './screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -75,6 +77,16 @@ export default function App() {
           <Stack.Screen
             name="Register"
             component={RegisterScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="DetailPengguna"
+            component={Detail}
             options={{ headerShown: false }}
           />
           <Stack.Screen
