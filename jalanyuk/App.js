@@ -18,6 +18,11 @@ import Header from './components/Header';
 import Detail from './master/Pengguna/Detail';
 import ProfileScreen from './screens/ProfileScreen';
 
+import KotaIndex from './master/Kota/Index';
+import AddKota from './master/Kota/Add';
+import DetailKota from './master/Kota/Detail';
+
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -42,6 +47,7 @@ export default function App() {
               RoleIndex: 'Master Role',
               AddRole: 'Master Role',
               PenggunaIndex: 'Master Pengguna',
+              KotaIndex: 'Master Kota',
             
             };
 
@@ -124,6 +130,22 @@ export default function App() {
             component={AddPengguna}
             options={{ headerBackVisible: false }}
           />
+          <Stack.Screen
+          name="KotaIndex"
+          component={KotaIndex}
+          options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="AddKota"
+            component={AddKota}
+            options={{ headerBackVisible: true }}
+          />
+          <Stack.Screen
+            name="DetailKota"
+            component={DetailKota}
+            options={{ headerBackVisible: true }}
+          />
+
         </Stack.Navigator>
       </NavigationContainer>
 

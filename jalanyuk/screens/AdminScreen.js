@@ -38,6 +38,8 @@ const AdminScreen = () => {
                   navigation.navigate('RoleIndex');
                 }else if (item.title === 'Pengguna') {
                   navigation.navigate('PenggunaIndex');
+                }else if (item.title === 'Kota') {
+                  navigation.navigate('KotaIndex');
                 }
               }}
             >

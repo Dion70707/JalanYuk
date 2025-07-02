@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://172.20.10.3:8080';
+const BASE_URL = 'http://192.168.0.103:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -124,6 +124,61 @@ export const deletePengguna = async (id) => {
 };
 
 
+export const getAllKota = async () => {
+  try {
+    const response = await api.get('/kotas');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching kota:', error);
+    throw error;
+  }
+};
+
+export const getKotaById = async (id) => {
+  try {
+    const response = await api.get('/kota', {
+      params: { id },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching kota with id ${id}:`, error);
+    throw error;
+  }
+};
+
+export const addKota = async (kota) => {
+  try {
+    const response = await api.post('/kota', kota);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding kota:', error);
+    throw error;
+  }
+};
+
+export const updateKota = async (id, kota) => {
+  try {
+    const response = await api.put('/kota', { id, ...kota });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating kota:', error);
+    throw error;
+  }
+};
+
+export const deleteKota = async (id) => {
+  try {
+    const response = await api.delete('/kota', {
+      params: { id },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting kota with id ${id}:`, error);
+    throw error;
+  }
+};
+
+
 export default {
   getAllRoles,
   getRoleById,
@@ -135,4 +190,9 @@ export default {
   createPengguna,
   updatePengguna,
   deletePengguna,
+  getAllKota,
+  getKotaById,
+  addKota,
+  updateKota,
+  deleteKota,
 };
