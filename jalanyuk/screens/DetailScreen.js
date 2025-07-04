@@ -1,11 +1,9 @@
-// DetailScreen.js
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   Image,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
@@ -13,42 +11,112 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
+import {
+  getWisataById,
+  getAllGaleri,
+  // getLoggedInUser,
+  postReview
+} from '../API';
 
 export default function DetailScreen({ route, navigation }) {
-  const { wisata } = route.params;
-  const [comments, setComments] = useState([
-    { id: '1', name: 'Ali', text: 'Tempat yang sangat indah!' },
-    { id: '2', name: 'Budi', text: 'Sangat direkomendasikan untuk liburan.' },
-  ]);
+  const { id } = route.params;
+
+  const [wisata, setWisata] = useState(null);
+  const [galeri, setGaleri] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
-  const [locationError, setLocationError] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [reviewText, setReviewText] = useState('');
   const [selectedRating, setSelectedRating] = useState(0);
+  const [user, setUser] = useState(null);
+
   const scrollRef = useRef();
 
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationError('Izin lokasi ditolak.');
-        return;
+    const fetchData = async () => {
+      try {
+        const wisataData = await getWisataById(id);
+        const galeriData = await getAllGaleri();
+        // const userData = await getLoggedInUser();
+        
+
+        setWisata(wisataData);
+        setGaleri(galeriData.filter(item => item.wisata_id === id));
+        // setUser(userData);
+      } catch (error) {
+        console.error('Gagal memuat data:', error);
+      } finally {
+        setLoading(false);
       }
-      let location = await Location.getCurrentPositionAsync({});
+    };
+
+    fetchData();
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      const location = await Location.getCurrentPositionAsync({});
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
     })();
-  }, []);
+  }, [id]);
+
+  const submitReview = async () => {
+    if (!user) {
+      Alert.alert('Login Diperlukan', 'Silakan login untuk memberikan ulasan.');
+      return;
+    }
+
+    try {
+      const reviewPayload = {
+        id_wisata: id,
+        id_pengguna: user.id,
+        rating: selectedRating,
+        foto: user.foto || '-',
+        komentar: reviewText
+      };
+
+      await postReview(reviewPayload);
+      Alert.alert('Sukses', 'Ulasan berhasil dikirim.');
+      setModalVisible(false);
+      setReviewText('');
+    } catch (error) {
+      Alert.alert('Gagal', 'Tidak dapat mengirim ulasan.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text>Memuat detail wisata...</Text>
+      </View>
+    );
+  }
+
+  if (!wisata) {
+    return (
+      <View style={styles.centered}>
+        <Text>Data wisata tidak ditemukan.</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView ref={scrollRef} style={{ backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
-          <Image source={wisata.image} style={styles.image} />
+          <Image source={{ uri: wisata.image }} style={styles.image} />
 
           <View style={styles.tabContainer}>
             <TouchableOpacity style={styles.activeTab}>
@@ -63,9 +131,7 @@ export default function DetailScreen({ route, navigation }) {
           </View>
 
           <Text style={styles.title}>{wisata.name}</Text>
-          <Text style={styles.locationText}>
-            {wisata.location} • ⭐ {wisata.rating}
-          </Text>
+          <Text style={styles.locationText}>{wisata.location} • ⭐ {wisata.rating}</Text>
 
           <Text style={styles.sectionTitle}>Lokasi Wisata</Text>
           <View style={styles.mapContainer}>
@@ -79,7 +145,7 @@ export default function DetailScreen({ route, navigation }) {
                   longitudeDelta: 0.05,
                 }}
               >
-                <Marker coordinate={wisata} title={wisata.name} description={wisata.location} pinColor="tomato" />
+                <Marker coordinate={{ latitude: wisata.latitude, longitude: wisata.longitude }} pinColor="tomato" />
                 <Marker coordinate={userLocation} title="Lokasi Saya" pinColor="blue" />
               </MapView>
             ) : (
@@ -91,91 +157,85 @@ export default function DetailScreen({ route, navigation }) {
           </View>
 
           <View style={styles.box}>
-            <Text style={styles.statusOpen}>Buka</Text>
-            <Text> . Tutup Pukul 16.00</Text>
+            <Text style={styles.statusOpen}>Buka</Text><Text> . Tutup Pukul 16.00</Text>
           </View>
 
           <View style={styles.box}>
             <FontAwesome name="star" size={18} color="#f4c542" />
-            <Text style={styles.infoText}>4.5 ★  20.125 Ulasan</Text>
+            <Text style={styles.infoText}>{wisata.rating} ★</Text>
           </View>
 
           <View style={styles.box}>
             <Ionicons name="call" size={18} color="#007bff" />
-            <Text style={styles.infoText}>087846112608</Text>
+            <Text style={styles.infoText}>{wisata.phone}</Text>
           </View>
 
           <View style={styles.box}>
-            <Text style={styles.description}>
-              Kawasan konservasi seluas 150 hektare & kebun raya dengan jalur untuk berjalan kaki, gua, & air terjun.
-            </Text>
+            <Text style={styles.description}>{wisata.description}</Text>
           </View>
 
-          <Text style={styles.sectionTitle}>Ringkasan Ulasan</Text>
-          <View style={styles.ratingSummaryContainer}>
+          <Text style={styles.sectionTitle}>Beri Rating</Text>
+          <View style={styles.reviewInputContainer}>
+            <Image source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
             <View style={{ flex: 1 }}>
-              {[5, 4, 3, 2, 1].map(star => (
-                <View key={star} style={styles.reviewRow}>
-                  <Text>{star}</Text>
-                  <View style={styles.barBackground}>
-                    <View style={[styles.barFill, { width: `${Math.random() * 80 + 20}%` }]} />
-                  </View>
-                </View>
-              ))}
-            </View>
-            <View style={styles.avgRatingBox}>
-              <Text style={styles.avgRating}>4.5</Text>
-              <Text style={{ color: '#999' }}>(1234)</Text>
-            </View>
-          </View>
-
-          <Text style={styles.sectionTitle}>Komentar Pengunjung</Text>
-          {comments.map(c => (
-            <View key={c.id} style={styles.commentItem}>
-              <View style={styles.avatar}>
-                <Text style={{ color: '#fff' }}>{c.name[0]}</Text>
-              </View>
-              <View>
-                <Text style={styles.commentName}>{c.name}</Text>
-                <Text>{c.text}</Text>
-              </View>
-            </View>
-          ))}
-
-          <TouchableOpacity onPress={() => navigation.navigate('Ulasan')} style={styles.moreReviewsButton}>
-            <Text style={styles.moreReviewsText}>Ulasan Lainnya &gt;</Text>
-          </TouchableOpacity>
-
-          <View style={styles.box}>
-            <View style={styles.reviewInputContainer}>
-              <Image source={{ uri: 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ marginBottom: 6 }}>Beri Rating:</Text>
-                <View style={{ flexDirection: 'row' }}>
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <TouchableOpacity
-                      key={i}
-                      onPress={() => {
-                        setSelectedRating(i);
-                        navigation.navigate('ReviewTransaksi');
-                      }}
-                    >
-                      <FontAwesome
-                        name="star"
-                        size={45}
-                        color={i <= selectedRating ? '#f4c542' : '#ccc'}
-                        style={{ marginRight: 5 }}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              <Text style={{ marginBottom: 6 }}>Klik bintang untuk memberi ulasan:</Text>
+              <View style={{ flexDirection: 'row' }}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => {
+                      setSelectedRating(i);
+                      setModalVisible(true);
+                    }}
+                  >
+                    <FontAwesome
+                      name="star"
+                      size={40}
+                      color={i <= selectedRating ? '#f4c542' : '#ccc'}
+                      style={{ marginRight: 5 }}
+                    />
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.bookButton}>
-            <Text style={styles.bookButtonText}>Pesan Tiket</Text>
-          </TouchableOpacity>
+          <Modal
+            visible={modalVisible}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%' }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Tulis Komentar</Text>
+                <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
+                <TextInput
+                  multiline
+                  numberOfLines={4}
+                  value={reviewText}
+                  onChangeText={setReviewText}
+                  placeholder="Masukkan komentar..."
+                  style={{
+                    borderColor: '#ccc',
+                    borderWidth: 1,
+                    padding: 10,
+                    borderRadius: 6,
+                    textAlignVertical: 'top',
+                  }}
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+                  <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 15 }}>
+                    <Text style={{ color: '#888' }}>Batal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={submitReview}>
+                    <Text style={{ color: '#007bff', fontWeight: 'bold' }}>Kirim</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -183,6 +243,7 @@ export default function DetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   image: { width: '100%', height: 220 },
   tabContainer: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 10 },
   tab: { paddingVertical: 6, paddingHorizontal: 16, backgroundColor: '#e0e0e0', borderRadius: 20 },

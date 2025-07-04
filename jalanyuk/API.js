@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://172.20.10.2:8080';
+const BASE_URL = 'http://192.168.206.125:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -10,7 +10,91 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+// trs 
 
+// base 
+export async function getAllWisata() {
+  const res = await fetch(`${BASE_URL}/wisatas`);
+  if (!res.ok) throw new Error('Failed to fetch wisata');
+  return res.json();
+}
+
+
+export async function getWisataById(id) {
+  try {
+    const response = await axios.get(`${BASE_URL}/wisatas`, {
+      params: { id: id }, // pastikan params ini sesuai API
+    });
+    return response.data;
+  } catch (error) {
+    console.error('API getWisataById error:', error.response?.status, error.response?.data);
+    throw new Error('Failed to fetch wisata by id');
+  }
+}
+
+export async function addWisata(data) {
+  const res = await fetch(`${BASE_URL}/wisata`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to add wisata');
+  return res.json();
+}
+
+export async function updateWisata(data) {
+  const res = await fetch(`${BASE_URL}/wisata`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update wisata');
+  return res.json();
+}
+
+export async function deleteWisata(id) {
+  const res = await fetch(`${BASE_URL}/wisata?id=${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete wisata');
+  return res.json();
+}
+
+//galeri
+export async function getAllGaleri() {
+  const res = await fetch(`${BASE_URL}/galeris`);
+  return res.json();
+}
+
+export async function getGaleriById(id) {
+  const res = await fetch(`${BASE_URL}/galeri?id=${id}`);
+  return res.json();
+}
+
+export async function addGaleri(formData) {
+  const res = await fetch(`${BASE_URL}/upload-galeri`, {
+    method: 'POST',
+    // jangan set header Content-Type di sini
+    body: formData,
+  });
+  return res.json();
+}
+
+export async function updateGaleri(galeri) {
+  const res = await fetch(`${BASE_URL}/galeri`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(galeri),
+  });
+  return res.json();
+}
+
+export async function deleteGaleri(id) {
+  const res = await fetch(`${BASE_URL}/galeri?id=${id}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
 // ====== ROLE API ======
 export const getAllRoles = async () => {
   try {
@@ -122,7 +206,60 @@ export const deletePengguna = async (id) => {
     throw error;
   }
 };
+// kota
+export const getAllKota = async () => {
+  try {
+    const response = await api.get('/kotas');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching kota:', error);
+    throw error;
+  }
+};
 
+export const getKotaById = async (id) => {
+  try {
+    const response = await api.get('/kota', {
+      params: { id },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching kota with id ${id}:`, error);
+    throw error;
+  }
+};
+
+export const addKota = async (kota) => {
+  try {
+    const response = await api.post('/kota', kota);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding kota:', error);
+    throw error;
+  }
+};
+
+export const updateKota = async (id, kota) => {
+  try {
+    const response = await api.put('/kota', { id, ...kota });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating kota:', error);
+    throw error;
+  }
+};
+
+export const deleteKota = async (id) => {
+  try {
+    const response = await api.delete('/kota', {
+      params: { id },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting kota with id ${id}:`, error);
+    throw error;
+  }
+};
 
 export default {
   getAllRoles,
@@ -135,4 +272,26 @@ export default {
   createPengguna,
   updatePengguna,
   deletePengguna,
+
+  
+getAllGaleri,
+getGaleriById,
+addGaleri,
+updateGaleri,
+deleteGaleri,
+
+getAllWisata,
+  getWisataById,
+  addWisata,
+  updateWisata,
+  deleteWisata,
+
+getAllKota,
+getKotaById,
+addKota,
+updateKota,
+deleteKota,
+
+
+
 };
