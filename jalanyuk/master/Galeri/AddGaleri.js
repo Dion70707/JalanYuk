@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { addGaleri } from '../../API'; // pastikan path benar
+import { addGaleri } from '../../API';
 
 const AddGaleri = () => {
   const [imageUri, setImageUri] = useState(null);
@@ -19,68 +19,77 @@ const AddGaleri = () => {
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
-  // Fallback handling untuk mediaTypes, supaya tidak muncul warning deprecated
-  const mediaTypes = ImagePicker.MediaType
-    ? [ImagePicker.MediaType.IMAGE]    // Versi baru (disarankan)
-    : ImagePicker.MediaTypeOptions.Images;  // Versi lama (fallback)
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin dibutuhkan', 'Aplikasi perlu akses ke galeri.');
+      return;
+    }
 
-    const pickImage = async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Izin dibutuhkan', 'Aplikasi perlu akses ke galeri.');
-        return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        setImageUri(result.assets[0].uri);
       }
-    
-      try {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          // langsung tulis 'Images' sebagai string
-          mediaTypes: 'Images', 
-          allowsEditing: true,
-          quality: 1,
-        });
-    
-        if (!result.canceled && result.assets?.length > 0) {
-          setImageUri(result.assets[0].uri);
-        } else {
-          console.log('Pemilihan gambar dibatalkan atau kosong.');
-        }
-      } catch (error) {
-        console.error('Gagal membuka galeri:', error);
-        Alert.alert('Gagal', error.message || 'Terjadi kesalahan saat memilih gambar.');
-      }
-    };
-    
+    } catch (error) {
+      console.error('Gagal membuka galeri:', error);
+      Alert.alert('Error', 'Gagal membuka galeri.');
+    }
+  };
 
   const handleSubmit = async () => {
     if (!imageUri || !keterangan) {
       Alert.alert('Validasi', 'Gambar dan keterangan wajib diisi.');
       return;
     }
-
+  
+    const filename = imageUri.split('/').pop();
+    const match = /\.(\w+)$/.exec(filename);
+    const fileType = match ? `image/${match[1]}` : `image`;
+  
     const formData = new FormData();
     formData.append('file', {
       uri: imageUri,
-      name: 'gambar.jpg',
-      type: 'image/jpeg',
+      name: filename,
+      type: fileType,
     });
     formData.append('keterangan', keterangan);
-
+  
     setLoading(true);
     try {
       const response = await addGaleri(formData);
-      if (response.status === 200) {
+  
+      // ✅ Tambahkan logging DI SINI
+      console.log('Status:', response.status);
+      console.log('OK:', response.ok);
+      console.log('Response headers:', response.headers);
+  
+      if (response.ok) {
+        const data = await response.json();
         Alert.alert('Sukses', 'Galeri berhasil ditambahkan.');
         navigation.goBack();
       } else {
-        Alert.alert('Gagal', 'Terjadi kesalahan saat upload.');
+        let errorMsg = 'Terjadi kesalahan saat upload.';
+        try {
+          const errData = await response.json();
+          errorMsg = errData.message || errorMsg;
+        } catch (_) {}
+        Alert.alert('Gagal', errorMsg);
       }
     } catch (error) {
-      console.error('Upload error:', error.message);
+      console.error('Upload error:', error);
       Alert.alert('Error', 'Gagal menghubungi server.');
     } finally {
       setLoading(false);
     }
   };
+  
+  
 
   return (
     <SafeAreaView style={styles.container}>

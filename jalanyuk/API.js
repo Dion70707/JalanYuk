@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.206.125:8080';
+const BASE_URL = 'http://192.168.1.6:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -71,23 +71,38 @@ export async function getGaleriById(id) {
   return res.json();
 }
 
-export async function addGaleri(formData) {
-  const res = await fetch(`${BASE_URL}/upload-galeri`, {
-    method: 'POST',
-    // jangan set header Content-Type di sini
-    body: formData,
-  });
-  return res.json();
-}
+export const addGaleri = async (formData) => {
+  try {
+    const response = await fetch(`${BASE_URL}/upload-galeri`, {
+      method: 'POST',
+      body: formData,
+      // ✅ Jangan set headers Content-Type!
+    });
+    return response;
+  } catch (error) {
+    console.error('API error:', error);
+    throw error;
+  }
+};
 
-export async function updateGaleri(galeri) {
-  const res = await fetch(`${BASE_URL}/galeri`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(galeri),
-  });
-  return res.json();
-}
+
+export const updateGaleri = async (formData) => {
+  try {
+    const response = await fetch(`${BASE_URL}/galeri`, {
+      method: 'PUT',
+      body: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Update error:', error);
+    throw error;
+  }
+};
+
+
 
 export async function deleteGaleri(id) {
   const res = await fetch(`${BASE_URL}/galeri?id=${id}`, {
