@@ -15,7 +15,9 @@
       "supportsTablet": true
     },
     "android": {
-      "permissions": ["READ_MEDIA_IMAGES"],
+      "permissions": [
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/jalanyuk.png",
         "backgroundColor": "#ffffff"

@@ -1,9 +1,11 @@
+// DetailScreen.js
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   Image,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
@@ -11,148 +13,48 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ActivityIndicator,
-  Modal,
-  TextInput,
-  Alert
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
-import {
-  getWisataById,
-  getAllGaleri,
-  postReview
-} from '../API';
 
 export default function DetailScreen({ route, navigation }) {
-  const { id } = route.params;
-
-  const [wisata, setWisata] = useState(null);
-  const [galeri, setGaleri] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { wisata } = route.params;
+  const [comments, setComments] = useState([
+    { id: '1', name: 'Ali', text: 'Tempat yang sangat indah!' },
+    { id: '2', name: 'Budi', text: 'Sangat direkomendasikan untuk liburan.' },
+  ]);
   const [userLocation, setUserLocation] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [reviewText, setReviewText] = useState('');
+  const [locationError, setLocationError] = useState(null);
   const [selectedRating, setSelectedRating] = useState(0);
-  const [user, setUser] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-
   const scrollRef = useRef();
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const wisataData = await getWisataById(id);
-        const galeriData = await getAllGaleri();
-
-        setWisata(wisataData);
-        setGaleri(galeriData.filter(item => item.wisata_id === id));
-
-        // Dummy user for demo
-        setUser({
-          id: 123,
-          foto: 'https://i.pravatar.cc/50'
-        });
-      } catch (error) {
-        console.error('Gagal memuat data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-
-      const location = await Location.getCurrentPositionAsync({});
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Izin lokasi ditolak.');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
     })();
-  }, [id]);
-
-  const pickImageFromGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Izin Ditolak', 'Aplikasi butuh akses ke galeri.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-
-    if (!result.cancelled) {
-      setSelectedImage(result.uri || result.assets[0].uri);
-    }
-  };
-
-  const submitReview = async () => {
-    if (!user) {
-      Alert.alert('Login Diperlukan', 'Silakan login untuk memberikan ulasan.');
-      return;
-    }
-
-    if (!reviewText.trim() || selectedRating === 0) {
-      Alert.alert('Lengkapi Ulasan', 'Silakan masukkan komentar dan rating.');
-      return;
-    }
-
-    try {
-      const reviewPayload = {
-        id_wisata: id,
-        id_pengguna: user.id,
-        rating: selectedRating,
-        foto: selectedImage || '-', // sesuai backend
-        komentar: reviewText.trim()
-      };
-
-      await postReview(reviewPayload);
-
-      Alert.alert('Sukses', 'Ulasan berhasil dikirim.');
-      setModalVisible(false);
-      setReviewText('');
-      setSelectedImage(null);
-      setSelectedRating(0);
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Gagal', 'Tidak dapat mengirim ulasan.');
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text>Memuat detail wisata...</Text>
-      </View>
-    );
-  }
-
-  if (!wisata) {
-    return (
-      <View style={styles.centered}>
-        <Text>Data wisata tidak ditemukan.</Text>
-      </View>
-    );
-  }
+  }, []);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView ref={scrollRef} style={{ backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
-          <Image source={{ uri: wisata.image }} style={styles.image} />
+          <Image source={wisata.image} style={styles.image} />
 
           <View style={styles.tabContainer}>
             <TouchableOpacity style={styles.activeTab}>
               <Text style={styles.tabText}>Ringkasan</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('UlasanScreen')} style={styles.tab}>
+            <TouchableOpacity onPress={() => navigation.navigate('Ulasan')} style={styles.tab}>
               <Text style={styles.tabText}>Ulasan</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tab}>
@@ -161,7 +63,9 @@ export default function DetailScreen({ route, navigation }) {
           </View>
 
           <Text style={styles.title}>{wisata.name}</Text>
-          <Text style={styles.locationText}>{wisata.location} • ⭐ {wisata.rating}</Text>
+          <Text style={styles.locationText}>
+            {wisata.location} • ⭐ {wisata.rating}
+          </Text>
 
           <Text style={styles.sectionTitle}>Lokasi Wisata</Text>
           <View style={styles.mapContainer}>
@@ -175,7 +79,7 @@ export default function DetailScreen({ route, navigation }) {
                   longitudeDelta: 0.05,
                 }}
               >
-                <Marker coordinate={{ latitude: wisata.latitude, longitude: wisata.longitude }} pinColor="tomato" />
+                <Marker coordinate={wisata} title={wisata.name} description={wisata.location} pinColor="tomato" />
                 <Marker coordinate={userLocation} title="Lokasi Saya" pinColor="blue" />
               </MapView>
             ) : (
@@ -188,110 +92,90 @@ export default function DetailScreen({ route, navigation }) {
 
           <View style={styles.box}>
             <Text style={styles.statusOpen}>Buka</Text>
+            <Text> . Tutup Pukul 16.00</Text>
           </View>
 
           <View style={styles.box}>
             <FontAwesome name="star" size={18} color="#f4c542" />
-            <Text style={styles.infoText}>{wisata.rating} ★</Text>
+            <Text style={styles.infoText}>4.5 ★  20.125 Ulasan</Text>
           </View>
 
           <View style={styles.box}>
             <Ionicons name="call" size={18} color="#007bff" />
-            <Text style={styles.infoText}>{wisata.phone}</Text>
+            <Text style={styles.infoText}>087846112608</Text>
           </View>
 
           <View style={styles.box}>
-            <Text style={styles.description}>{wisata.description}</Text>
+            <Text style={styles.description}>
+              Kawasan konservasi seluas 150 hektare & kebun raya dengan jalur untuk berjalan kaki, gua, & air terjun.
+            </Text>
           </View>
 
-          {/* Bagian beri rating */}
-          <Text style={styles.sectionTitle}>Beri Rating</Text>
-          <View style={styles.reviewInputContainer}>
-            <Image
-              source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }}
-              style={styles.profileImage}
-            />
-            <View style={styles.reviewRight}>
-              <Text style={styles.instructionText}>
-                Klik bintang untuk memberi ulasan:
-              </Text>
-              <View style={styles.starContainer}>
-                {[1, 2, 3, 4, 5].map(i => (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => {
-                      setSelectedRating(i);
-                      setModalVisible(true);
-                    }}
-                  >
-                    <FontAwesome
-                      name="star"
-                      size={40}
-                      color={i <= selectedRating ? '#f4c542' : '#ccc'}
-                      style={styles.star}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
+          <Text style={styles.sectionTitle}>Ringkasan Ulasan</Text>
+          <View style={styles.ratingSummaryContainer}>
+            <View style={{ flex: 1 }}>
+              {[5, 4, 3, 2, 1].map(star => (
+                <View key={star} style={styles.reviewRow}>
+                  <Text>{star}</Text>
+                  <View style={styles.barBackground}>
+                    <View style={[styles.barFill, { width: `${Math.random() * 80 + 20}%` }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+            <View style={styles.avgRatingBox}>
+              <Text style={styles.avgRating}>4.5</Text>
+              <Text style={{ color: '#999' }}>(1234)</Text>
             </View>
           </View>
 
-          {/* Tombol Pesan Tiket */}
-          <TouchableOpacity
-            style={styles.bookButton}
-            onPress={() => navigation.navigate('PesanTiketScreen')} // navigasi ke halaman pesan tiket
-          >
-            <Text style={styles.bookButtonText}>Pesan Tiket</Text>
+          <Text style={styles.sectionTitle}>Komentar Pengunjung</Text>
+          {comments.map(c => (
+            <View key={c.id} style={styles.commentItem}>
+              <View style={styles.avatar}>
+                <Text style={{ color: '#fff' }}>{c.name[0]}</Text>
+              </View>
+              <View>
+                <Text style={styles.commentName}>{c.name}</Text>
+                <Text>{c.text}</Text>
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity onPress={() => navigation.navigate('Ulasan')} style={styles.moreReviewsButton}>
+            <Text style={styles.moreReviewsText}>Ulasan Lainnya &gt;</Text>
           </TouchableOpacity>
 
-          {/* Modal untuk review */}
-          <Modal
-            visible={modalVisible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={() => setModalVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Tulis Komentar</Text>
-                <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
-
-                <TouchableOpacity
-                  onPress={pickImageFromGallery}
-                  style={{ marginBottom: 12 }}
-                >
-                  <Text style={{ color: '#007bff' }}>
-                    {selectedImage ? 'Ganti Foto dari Galeri' : 'Pilih Foto dari Galeri'}
-                  </Text>
-                </TouchableOpacity>
-
-                {selectedImage && (
-                  <Image
-                    source={{ uri: selectedImage }}
-                    style={styles.selectedImage}
-                  />
-                )}
-
-                <TextInput
-                  multiline
-                  numberOfLines={4}
-                  value={reviewText}
-                  onChangeText={setReviewText}
-                  placeholder="Masukkan komentar..."
-                  style={styles.textInput}
-                />
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 15 }}>
-                    <Text style={{ color: '#888' }}>Batal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={submitReview}>
-                    <Text style={{ color: '#007bff', fontWeight: 'bold' }}>Kirim</Text>
-                  </TouchableOpacity>
+          <View style={styles.box}>
+            <View style={styles.reviewInputContainer}>
+              <Image source={{ uri: 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ marginBottom: 6 }}>Beri Rating:</Text>
+                <View style={{ flexDirection: 'row' }}>
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => {
+                        setSelectedRating(i);
+                        navigation.navigate('ReviewTransaksi');
+                      }}
+                    >
+                      <FontAwesome
+                        name="star"
+                        size={45}
+                        color={i <= selectedRating ? '#f4c542' : '#ccc'}
+                        style={{ marginRight: 5 }}
+                      />
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
             </View>
-          </Modal>
+          </View>
 
+          <TouchableOpacity style={styles.bookButton}>
+            <Text style={styles.bookButtonText}>Pesan Tiket</Text>
+          </TouchableOpacity>
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -299,7 +183,6 @@ export default function DetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   image: { width: '100%', height: 220 },
   tabContainer: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 10 },
   tab: { paddingVertical: 6, paddingHorizontal: 16, backgroundColor: '#e0e0e0', borderRadius: 20 },
@@ -307,13 +190,7 @@ const styles = StyleSheet.create({
   tabText: { color: '#fff', fontWeight: 'bold' },
   title: { fontSize: 22, fontWeight: 'bold', marginHorizontal: 12 },
   locationText: { fontSize: 14, color: '#666', marginHorizontal: 12, marginBottom: 10 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginHorizontal: 12,
-    marginTop: 20,
-    marginBottom: 8,
-  },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginHorizontal: 12, marginTop: 20 },
   mapContainer: { height: 180, margin: 12, borderRadius: 12, overflow: 'hidden' },
   map: { flex: 1 },
   loading: { alignItems: 'center', justifyContent: 'center', height: 180 },
@@ -328,80 +205,63 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusOpen: { color: 'green', fontWeight: 'bold', marginRight: 4 },
-  infoText: { marginLeft: 6 },
-  description: { fontSize: 14, color: '#333' },
+  infoText: { marginLeft: 6, fontSize: 14, color: '#333' },
+  description: { marginHorizontal: 12, marginTop: 8, fontSize: 14, color: '#555' },
+  ratingSummaryContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 12,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  reviewRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  barBackground: {
+    flex: 1,
+    backgroundColor: '#ddd',
+    height: 8,
+    marginLeft: 8,
+    borderRadius: 4,
+  },
+  barFill: {
+    height: 8,
+    backgroundColor: '#007bff',
+    borderRadius: 4,
+  },
+  avgRatingBox: { alignItems: 'center', marginLeft: 12 },
+  avgRating: { fontSize: 28, fontWeight: 'bold', color: '#333' },
+  commentItem: {
+    flexDirection: 'row',
+    padding: 12,
+    margin: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#007bff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  commentName: { fontWeight: 'bold', color: '#007bff', marginBottom: 4 },
+  moreReviewsButton: { alignItems: 'flex-end', marginHorizontal: 12 },
+  moreReviewsText: { color: '#007bff', fontWeight: 'bold' },
   reviewInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 12,
-    marginBottom: 20,
+    padding: 12,
+    marginBottom: 16,
   },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  reviewRight: {
-    flex: 1,
-  },
-  instructionText: {
-    marginBottom: 6,
-    fontSize: 14,
-    color: '#333',
-  },
-  starContainer: {
-    flexDirection: 'row',
-  },
-  star: {
-    marginRight: 5,
-  },
+  profileImage: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
   bookButton: {
-    backgroundColor: '#28a745',
-    paddingVertical: 12,
+    backgroundColor: '#0056b3',
+    padding: 15,
+    alignItems: 'center',
     marginHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 20,
+    borderRadius: 10,
+    marginTop: 10,
+    marginBottom: 30,
   },
-  bookButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    width: '90%',
-  },
-  modalTitle: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  selectedImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 12,
-    borderRadius: 6,
-  },
-  textInput: {
-    borderColor: '#ccc',
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 6,
-    textAlignVertical: 'top',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-  },
+  bookButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
