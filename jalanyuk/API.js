@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.43.81:8080';
+const BASE_URL = 'http://192.168.165.125:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -10,6 +10,16 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+// trs 
+export async function postPemesanan(pemesananData) {
+  try {
+    const response = await api.post('/trspemesanan', pemesananData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating pemesanan:', error);
+    throw error;
+  }
+}
 
 export async function getAllReviews() {
   try {
@@ -50,6 +60,54 @@ export async function getGaleriByWisataId(idWisata) {
     console.warn(`❌ Error saat fetch galeri wisata ID ${idWisata}:`, error);
     return []; // Fallback aman
   }
+}
+
+
+export async function getAllWisata() {
+  const res = await fetch(`${BASE_URL}/wisatas`);
+  if (!res.ok) throw new Error('Failed to fetch wisata');
+  return res.json();
+}
+
+
+export async function getWisataById(id) {
+  try {
+    const response = await axios.get(`${BASE_URL}/wisatas`, {
+      params: { id: id }, // pastikan params ini sesuai API
+    });
+    return response.data;
+  } catch (error) {
+    console.error('API getWisataById error:', error.response?.status, error.response?.data);
+    throw new Error('Failed to fetch wisata by id');
+  }
+}
+
+export async function addWisata(data) {
+  const res = await fetch(`${BASE_URL}/wisata`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to add wisata');
+  return res.json();
+}
+
+export async function updateWisata(data) {
+  const res = await fetch(`${BASE_URL}/wisata`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update wisata');
+  return res.json();
+}
+
+export async function deleteWisata(id) {
+  const res = await fetch(`${BASE_URL}/wisata?id=${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete wisata');
+  return res.json();
 }
 
 //galeri
@@ -103,17 +161,16 @@ export async function deleteGaleri(id) {
   return res.json();
 }
 // ====== ROLE API ======
-export const getAllRoles = async (status) => {
+export const getAllRoles = async () => {
   try {
-    const response = await api.get('/roles', {
-      params: { status }, // ✅ pastikan status dikirim sebagai query param
-    });
+    const response = await api.get('/roles');
     return response.data;
   } catch (error) {
     console.error('Error fetching roles:', error);
     throw error;
   }
 };
+
 
 export const getRoleById = async (id) => {
   try {
@@ -139,9 +196,7 @@ export const createRole = async (role) => {
 
 export const updateRole = async (role) => {
   try {
-    const response = await api.put('/role', role, {
-      params: { id: role.id_role }, // ✅ tambahkan id sebagai query param
-    });
+    const response = await api.put('/role', role);
     return response.data;
   } catch (error) {
     console.error('Error updating role:', error);
@@ -161,26 +216,14 @@ export const deleteRole = async (id) => {
   }
 };
 
-export const toggleRoleStatus = async (id, status) => {
-  try {
-    const response = await api.put('/role/status', null, {
-      params: { id, status },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error toggling role status:', error);
-    throw error;
-  }
-};
 
-export const getAllPenggunas = async (status) => {
+
+export const getAllPenggunas = async () => {
   try {
-    const response = await api.get('/penggunas', {
-      params: { status }, // ✅ pastikan status dikirim sebagai query param
-    });
+    const response = await api.get('/penggunas');
     return response.data;
   } catch (error) {
-    console.error('Error fetching roles:', error);
+    console.error('Error fetching penggunas:', error);
     throw error;
   }
 };
@@ -228,78 +271,60 @@ export const deletePengguna = async (id) => {
     throw error;
   }
 };
-
-export const togglePenggunaStatus = async (id, status) => {
+// kota
+export const getAllKota = async () => {
   try {
-    const response = await api.put('/pengguna/status', null, {
-      params: { id, status },
-    });
+    const response = await api.get('/kotas');
     return response.data;
   } catch (error) {
-    console.error('Error toggling role status:', error);
+    console.error('Error fetching kota:', error);
     throw error;
   }
 };
 
-// ====== WISATA API ======
-export const getAllWisata = async () => {
+export const getKotaById = async (id) => {
   try {
-    const response = await api.get('/wisatas');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching wisata list:', error);
-    throw error;
-  }
-};
-
-export const getWisataById = async (id) => {
-  try {
-    const response = await api.get('/wisata', {
+    const response = await api.get('/kota', {
       params: { id },
     });
     return response.data;
   } catch (error) {
-    console.error(`Error fetching wisata with id ${id}:`, error);
+    console.error(`Error fetching kota with id ${id}:`, error);
     throw error;
   }
 };
 
-export const createWisata = async (wisata) => {
+export const addKota = async (kota) => {
   try {
-    const response = await api.post('/wisata', wisata);
+    const response = await api.post('/kota', kota);
     return response.data;
   } catch (error) {
-    console.error('Error creating wisata:', error);
+    console.error('Error adding kota:', error);
     throw error;
   }
 };
 
-export const updateWisata = async (wisata) => {
+export const updateKota = async (id, kota) => {
   try {
-    const response = await api.put('/wisata', wisata);
+    const response = await api.put('/kota', { id, ...kota });
     return response.data;
   } catch (error) {
-    console.error('Error updating wisata:', error);
+    console.error('Error updating kota:', error);
     throw error;
   }
 };
 
-export const deleteWisata = async (id) => {
+export const deleteKota = async (id) => {
   try {
-    const response = await api.delete('/wisata', {
+    const response = await api.delete('/kota', {
       params: { id },
     });
     return response.data;
   } catch (error) {
-    console.error(`Error deleting wisata with id ${id}:`, error);
+    console.error(`Error deleting kota with id ${id}:`, error);
     throw error;
   }
 };
-
-export const getImageUrlById = (id_galeri) => {
-  return `${BASE_URL}/galeri/image/${id_galeri}`;
-};
-
 
 export default {
   getAllRoles,
@@ -307,21 +332,29 @@ export default {
   createRole,
   updateRole,
   deleteRole,
-  toggleRoleStatus,
-
   getAllPenggunas,
   getPenggunaById,
   createPengguna,
   updatePengguna,
   deletePengguna,
-  togglePenggunaStatus,
 
-  getAllWisata,
+  
+getAllGaleri,
+getGaleriById,
+addGaleri,
+updateGaleri,
+deleteGaleri,
+
+getAllWisata,
   getWisataById,
-  createWisata,
+  addWisata,
   updateWisata,
   deleteWisata,
 
-  getImageUrlById,
-};
+getAllKota,
+getKotaById,
+addKota,
+updateKota,
+deleteKota,
 
+};
