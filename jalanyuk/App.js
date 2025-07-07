@@ -18,8 +18,22 @@ import Header from './components/Header';
 import Detail from './master/Pengguna/Detail';
 import Edit from './master/Pengguna/Edit';
 import ProfileScreen from './screens/ProfileScreen';
+import GaleriIndex from './master/Galeri/Index';
+import WisataIndex from './master/Wisata/Index';
+import AddGaleri from './master/Galeri/AddGaleri';
+import AddWisata from './master/Wisata/AddWisata';
+import DetailGaleri from './master/Galeri/DetailGaleri';
+import DetailWisata from './master/Wisata/DetailWisata';
+
+import KotaIndex from './master/Kota/Index';
+import AddKota from './master/Kota/Add';
+import DetailKota from './master/Kota/Detail';
+import UlasanScreen from './screens/UlasanScreen';
+import PesanTiketScreen from './screens/PesanTiketScreen';
 
 const Stack = createNativeStackNavigator();
+
+
 
 export default function App() {
   return (
@@ -43,6 +57,14 @@ export default function App() {
               RoleIndex: 'Master Role',
               AddRole: 'Master Role',
               PenggunaIndex: 'Master Pengguna',
+              GaleriIndex: 'Master Galeri',
+              AddGaleri: 'Tambah Galeri',
+              WisataIndex:'Master Wisata',
+              AddWisata:'Master Wisata',
+              DetailGaleri:'Detail Galeri',
+              DetailWisata:'Detail Wisata',
+              UlasanScreen:'Ulasan',
+              PemesananScreen:'PesanTiketScreen',
             
             };
 
@@ -116,6 +138,26 @@ export default function App() {
             options={{ headerBackVisible: false }}
           />
           <Stack.Screen
+            name="AddGaleri"
+            component={AddGaleri}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="GaleriIndex"
+            component={GaleriIndex}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="DetailGaleri"
+            component={DetailGaleri}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="DetailWisata"
+            component={DetailWisata}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
             name="AddRole"
             component={AddRole}
             options={{ headerBackVisible: false }}
@@ -124,6 +166,41 @@ export default function App() {
             name="AddPengguna"
             component={AddPengguna}
             options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="WisataIndex"
+            component={WisataIndex}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="AddWisata"
+            component={AddWisata}
+            options={{ headerBackVisible: false }}
+          />
+           <Stack.Screen
+          name="KotaIndex"
+          component={KotaIndex}
+          options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="AddKota"
+            component={AddKota}
+            options={{ headerBackVisible: true }}
+          />
+          <Stack.Screen
+            name="DetailKota"
+            component={DetailKota}
+            options={{ headerBackVisible: true }}
+          />
+          <Stack.Screen
+            name="UlasanScreen"
+            component={UlasanScreen}
+            options={{ headerBackVisible: true }}
+          />
+          <Stack.Screen
+            name="PesanTiketScreen"
+            component={PesanTiketScreen}
+            options={{ headerBackVisible: true }}
           />
         </Stack.Navigator>
       </NavigationContainer>

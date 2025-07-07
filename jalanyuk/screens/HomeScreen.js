@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,131 +8,81 @@ import {
   TextInput,
   StyleSheet,
   SafeAreaView,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { getAllWisata, getGaleriById } from '../API';
+import Tab from '../components/Tab';
+import Notifikasi from '../components/Notifikasi';
 
-const wisataList = [
-  {
-    id: '1',
-    name: 'Taman Mini Indonesia Indah',
-    location: 'Jakarta',
-    category: 'Budaya',
-    rating: 4.7,
-    reviewCount: 2,
-    description: 'Taman wisata budaya Indonesia di Jakarta Timur.',
-    image: require('../assets/tamanmini.png'),
-    latitude: -6.3025,
-    longitude: 106.8956,
-  },
-  {
-    id: '2',
-    name: 'Kawah Putih',
-    location: 'Bandung',
-    category: 'Alam',
-    rating: 4.6,
-    reviewCount: 5,
-    description: 'Danau kawah vulkanik berwarna putih kehijauan.',
-    image: require('../assets/kawahputih.png'),
-    latitude: -7.1665,
-    longitude: 107.4022,
-  },
-  {
-    id: '3',
-    name: 'Pantai Kuta',
-    location: 'Bali',
-    category: 'Pantai',
-    rating: 4.5,
-    reviewCount: 7,
-    description: 'Pantai terkenal dengan pasir putih dan ombak untuk berselancar.',
-    image: require('../assets/pantaikuta.png'),
-    latitude: -8.7177,
-    longitude: 115.1685,
-  },
-  {
-    id: '4',
-    name: 'Borobudur',
-    location: 'Magelang',
-    category: 'Sejarah',
-    rating: 4.9,
-    reviewCount: 10,
-    description: 'Candi Buddha terbesar di dunia dan situs warisan dunia UNESCO.',
-    image: require('../assets/borobudur.png'),
-    latitude: -7.6079,
-    longitude: 110.2038,
-  },
-  {
-    id: '5',
-    name: 'Raja Ampat',
-    location: 'Papua Barat',
-    category: 'Alam',
-    rating: 4.9,
-    reviewCount: 8,
-    description: 'Surga bawah laut dengan keanekaragaman hayati laut yang luar biasa.',
-    image: require('../assets/rajaampat.png'),
-    latitude: -0.2346,
-    longitude: 130.5079,
-  },
-  {
-    id: '6',
-    name: 'Gunung Bromo',
-    location: 'Jawa Timur',
-    category: 'Gunung',
-    rating: 4.8,
-    reviewCount: 6,
-    description: 'Gunung berapi aktif dengan pemandangan matahari terbit yang menakjubkan.',
-    image: require('../assets/bromo.png'),
-    latitude: -7.9425,
-    longitude: 112.9530,
-  },
-  {
-    id: '7',
-    name: 'Danau Toba',
-    location: 'Sumatera Utara',
-    category: 'Danau',
-    rating: 4.6,
-    reviewCount: 9,
-    description: 'Danau vulkanik terbesar di Asia Tenggara dengan pulau Samosir di tengahnya.',
-    image: require('../assets/danautoba.png'),
-    latitude: 2.6785,
-    longitude: 98.8752,
-  },
-  {
-    id: '8',
-    name: 'Lawang Sewu',
-    location: 'Semarang',
-    category: 'Sejarah',
-    rating: 4.3,
-    reviewCount: 4,
-    description: 'Gedung peninggalan Belanda yang terkenal dengan arsitekturnya dan cerita mistis.',
-    image: require('../assets/lawangsewu.png'),
-    latitude: -6.9842,
-    longitude: 110.4091,
-  },
-];
+// Ganti sesuai IP server lokal kamu
+const IMAGE_BASE_URL = 'http://192.168.1.6:8080';
 
-const TABS = [
-  { key: 'Beranda', label: 'Beranda', icon: 'home' },
-  { key: 'Favorit', label: 'Favorit', icon: 'heart' },
-  { key: 'MyOrder', label: 'My Order', icon: 'ticket' },
-  { key: 'Profile', label: 'Profile', icon: 'user' },
-];
-
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen() {
+  const navigation = useNavigation();
   const [search, setSearch] = useState('');
-  const [selectedTab, setSelectedTab] = useState('Beranda');
+  const [selectedTab, setSelectedTab] = useState('Dashboard');
+  const [wisataData, setWisataData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredData = wisataList.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllWisata();
+  
+      let data = Array.isArray(response) ? response : [];
+  
+      const mappedData = await Promise.all(
+        data.map(async (item) => {
+          let imageUrl = '';
+  
+          try {
+            const galeriList = await getGaleriByWisataId(item.id);
+            if (Array.isArray(galeriList) && galeriList.length > 0) {
+              const firstFoto = galeriList[0].url_foto;
+              imageUrl = firstFoto.startsWith('http')
+                ? firstFoto
+                : `${BASE_URL}${firstFoto}`;
+            } else {
+              console.log(`⚠️ Tidak ada gambar untuk ${item.nama_wisata}`);
+            }
+          } catch (err) {
+            console.warn(`❌ Gagal ambil galeri untuk ${item.nama_wisata}`, err);
+          }
+  
+          return {
+            id: item.id,
+            name: item.nama_wisata,
+            location: item.alamat,
+            rating: item.rating_rata,
+            reviewCount: item.jumlah_review,
+            category: item.kategori,
+            description: item.deskripsi,
+            image: imageUrl || 'https://via.placeholder.com/400x200.png?text=No+Image',
+            latitude: parseFloat(item.koordinat_lat),
+            longitude: parseFloat(item.koordinat_lng),
+          };
+        })
+      );
+  
+      setWisataData(mappedData);
+    } catch (error) {
+      console.error('Gagal fetch data wisata:', error);
+      Notifikasi('Gagal memuat data wisata.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
   );
 
-  const handleTabPress = (tabKey) => {
-    setSelectedTab(tabKey);
-    if (tabKey === 'Favorit') navigation.navigate('Favorit');
-    else if (tabKey === 'Profile') navigation.navigate('Profile');
-    else if (tabKey === 'MyOrder') navigation.navigate('MyOrder');
-    // tab 'Beranda' tidak perlu pindah karena ini halaman saat ini
-  };
+  const filteredData = wisataData.filter((item) =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -147,51 +97,38 @@ export default function HomeScreen({ navigation }) {
           placeholderTextColor="#999"
         />
 
-        <FlatList
-          data={filteredData}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 80 }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Image source={item.image} style={styles.image} />
-              <View style={styles.cardContent}>
-                <View style={styles.info}>
-                  <Text style={styles.title}>{item.name}</Text>
-                  <Text style={styles.subtitle}>
-                    {item.location} • ⭐ {item.rating} ({item.reviewCount} reviews)
-                  </Text>
-                  <Text style={styles.category}>{item.category}</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />
+        ) : (
+          <FlatList
+            data={filteredData}
+            keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
+            contentContainerStyle={{ paddingBottom: 80 }}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <Image source={{ uri: item.image }} style={styles.image} />
+                <View style={styles.cardContent}>
+                  <View style={styles.info}>
+                    <Text style={styles.title}>{item.name}</Text>
+                    <Text style={styles.subtitle}>
+                      {item.location} • ⭐ {item.rating} ({item.reviewCount} reviews)
+                    </Text>
+                    <Text style={styles.category}>{item.category}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Detail', { wisata: item })}
+                    style={styles.detailButton}
+                  >
+                    <Text style={styles.detailButtonText}>Detail</Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Detail', { wisata: item })}
-                  style={styles.detailButton}
-                >
-                  <Text style={styles.detailButtonText}>Detail</Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          )}
-        />
+            )}
+          />
+        )}
       </View>
 
-      <View style={styles.tabBar}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={styles.tabItem}
-            onPress={() => handleTabPress(tab.key)}
-          >
-            <Icon
-              name={tab.icon}
-              size={20}
-              color="#fff"
-              style={styles.tabIcon}
-            />
-            <Text style={styles.tabLabel}>{tab.label}</Text>
-            {selectedTab === tab.key && <View style={styles.tabIndicator} />}
-          </TouchableOpacity>
-        ))}
-      </View>
+      <Tab selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
     </SafeAreaView>
   );
 }
@@ -269,37 +206,5 @@ const styles = StyleSheet.create({
   detailButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-  },
-  tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    backgroundColor: '#007bff',
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  tabItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  tabIcon: {
-    marginBottom: 2,
-  },
-  tabLabel: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  tabIndicator: {
-    height: 4,
-    backgroundColor: '#fff',
-    borderRadius: 2,
-    marginTop: 6,
-    width: '50%',
-    alignSelf: 'center',
   },
 });

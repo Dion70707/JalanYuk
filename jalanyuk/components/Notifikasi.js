@@ -25,7 +25,7 @@ const Notifikasi = ({ message, visible, onClose, type = 'success' }) => {
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: true,      
       }).start();
 
       // Auto close after 1.5 seconds
