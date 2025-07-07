@@ -150,6 +150,65 @@ export const togglePenggunaStatus = async (id, status) => {
   }
 };
 
+// ====== WISATA API ======
+export const getAllWisata = async () => {
+  try {
+    const response = await api.get('/wisatas');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching wisata list:', error);
+    throw error;
+  }
+};
+
+export const getWisataById = async (id) => {
+  try {
+    const response = await api.get('/wisata', {
+      params: { id },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching wisata with id ${id}:`, error);
+    throw error;
+  }
+};
+
+export const createWisata = async (wisata) => {
+  try {
+    const response = await api.post('/wisata', wisata);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating wisata:', error);
+    throw error;
+  }
+};
+
+export const updateWisata = async (wisata) => {
+  try {
+    const response = await api.put('/wisata', wisata);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating wisata:', error);
+    throw error;
+  }
+};
+
+export const deleteWisata = async (id) => {
+  try {
+    const response = await api.delete('/wisata', {
+      params: { id },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting wisata with id ${id}:`, error);
+    throw error;
+  }
+};
+
+export const getImageUrlById = (id_galeri) => {
+  return `${BASE_URL}/galeri/image/${id_galeri}`;
+};
+
 
 export default {
   getAllRoles,
@@ -157,9 +216,21 @@ export default {
   createRole,
   updateRole,
   deleteRole,
+  toggleRoleStatus,
+
   getAllPenggunas,
   getPenggunaById,
   createPengguna,
   updatePengguna,
   deletePengguna,
+  togglePenggunaStatus,
+
+  getAllWisata,
+  getWisataById,
+  createWisata,
+  updateWisata,
+  deleteWisata,
+
+  getImageUrlById,
 };
+
