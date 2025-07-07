@@ -16,7 +16,7 @@ import Tab from '../components/Tab';
 import Notifikasi from '../components/Notifikasi';
 
 // Ganti sesuai IP server lokal kamu
-const IMAGE_BASE_URL = 'http://192.168.1.6:8080';
+const IMAGE_BASE_URL = 'http://192.168.43.81:8080';
 
 export default function HomeScreen() {
   const navigation = useNavigation();

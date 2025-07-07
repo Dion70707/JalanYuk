@@ -15,8 +15,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { getAllGaleri, deleteGaleri } from '../../API';
 
-// ✅ Ganti ini dengan IP lokal komputer kamu
-const IMAGE_BASE_URL = 'http://192.168.1.6:8080';
+const IMAGE_BASE_URL = 'http://192.168.43.81:8080';
 
 const Index = () => {
   const [galeriList, setGaleriList] = useState([]);
@@ -74,7 +73,6 @@ const Index = () => {
       onPress={() => navigation.navigate('DetailGaleri', { id: item.id })}
       activeOpacity={0.7}
     >
-      {/* ✅ Perbaiki URL gambar agar bisa diakses dari perangkat */}
       <Image
         source={{ uri: `${IMAGE_BASE_URL}${item.url_foto}` }}
         style={styles.image}
