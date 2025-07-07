@@ -9,11 +9,11 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { postPemesanan } from '../API'; // pastikan path ini sesuai dengan lokasi file API.js
+import { postPemesanan } from '../API';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PemesananScreen({ route, navigation }) {
-  // Ambil wisata dari params, jika tidak ada beri default kosong
-  const { wisata } = route.params || {};
+  const { wisata } = route.params;
 
   const [jumlahTiket, setJumlahTiket] = useState('');
   const [totalHarga, setTotalHarga] = useState(0);
@@ -21,79 +21,93 @@ export default function PemesananScreen({ route, navigation }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Dummy user login
-    setUser({ id: 123 });
+    const getUserData = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('userId');
+        if (userData) {
+          const parsedId = parseInt(userData);
+          setUser({ id: parsedId });
+        } else {
+          Alert.alert('Error', 'Pengguna belum login.');
+        }
+      } catch (err) {
+        console.error('Gagal mendapatkan data user', err);
+      }
+    };
+
+    getUserData();
   }, []);
 
   useEffect(() => {
-    if (jumlahTiket && !isNaN(jumlahTiket) && wisata) {
-      const hargaTotal = parseInt(jumlahTiket) * parseInt(wisata.harga);
+    if (jumlahTiket && !isNaN(jumlahTiket) && wisata?.harga_tiket) {
+      const hargaTotal = parseInt(jumlahTiket) * parseInt(wisata.harga_tiket);
       setTotalHarga(hargaTotal);
     } else {
       setTotalHarga(0);
     }
   }, [jumlahTiket, wisata]);
 
+
+  console.log('Wisata:', wisata);
+  console.log('Wisata ID:', wisata?.id);
+  console.log('Wisata dari route.params:', wisata);
+
+
   const handlePemesanan = async () => {
+    const wisataId = wisata?.id;
+
     if (!jumlahTiket || isNaN(jumlahTiket) || parseInt(jumlahTiket) <= 0) {
       Alert.alert('Error', 'Masukkan jumlah tiket yang valid.');
       return;
     }
 
-    if (!user) {
+    if (!user?.id) {
       Alert.alert('Error', 'Pengguna belum login.');
       return;
     }
 
-    if (!wisata) {
+    if (!wisataId) {
       Alert.alert('Error', 'Data wisata tidak tersedia.');
       return;
     }
 
     const payload = {
       id: 0,
-      id_wisata: wisata.id,
+      id_wisata: wisataId,
       id_pengguna: user.id,
       jumlah_tiket: parseInt(jumlahTiket),
       total_harga: totalHarga,
-      tanggal_pemesanan: new Date().toISOString().split('T')[0], // Format: YYYY-MM-DD
+      tanggal_pemesanan: new Date().toISOString().split('T')[0],
     };
 
     try {
-      setLoading(true);
-      const result = await postPemesanan(payload);
+  setLoading(true);
+  const result = await postPemesanan(payload);
+  console.log('Response Pemesanan:', result);
 
-      if (result.code === 200) {
-        Alert.alert('Sukses', 'Pemesanan berhasil dibuat.');
-        navigation.goBack();
-      } else {
-        Alert.alert('Gagal', result.message || 'Terjadi kesalahan saat menyimpan.');
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Tidak dapat menghubungi server.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!wisata) {
-    return (
-      <View style={styles.centered}>
-        <Text>Data wisata tidak ditemukan.</Text>
-      </View>
-    );
+  if (result.result === 200) {
+    Alert.alert('✅ Sukses', result.message || 'Pemesanan berhasil dibuat.');
+  } else {
+    Alert.alert('❌ Gagal', result.message || 'Terjadi kesalahan saat menyimpan.');
   }
+} catch (error) {
+  console.error(error);
+  Alert.alert('Error', 'Tidak dapat menghubungi server.');
+} finally {
+  setLoading(false);
+}
+
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Pemesanan Tiket</Text>
 
       <Text style={styles.label}>Nama Wisata:</Text>
-      <Text style={styles.readonly}>{wisata.name}</Text>
+      <Text style={styles.readonly}>{wisata.nama_wisata || wisata.name || '-'}</Text>
 
       <Text style={styles.label}>Harga per Tiket:</Text>
-      <Text style={styles.readonly}>Rp {wisata.harga}</Text>
+      <Text style={styles.readonly}>Rp {wisata.harga_tiket || wisata.harga || 0}</Text>
 
       <Text style={styles.label}>Jumlah Tiket:</Text>
       <TextInput
@@ -127,11 +141,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 50,
     backgroundColor: '#fff',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   title: {
     fontSize: 22,

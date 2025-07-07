@@ -75,14 +75,19 @@ export async function getAllWisata() {
 export async function getWisataById(id) {
   try {
     const response = await axios.get(`${BASE_URL}/wisatas`, {
-      params: { id: id }, // pastikan params ini sesuai API
+      params: { id: id },
     });
-    return response.data;
+
+    // Ambil wisata pertama dari array jika response-nya berupa array
+    const data = Array.isArray(response.data) ? response.data[0] : response.data;
+
+    return data;
   } catch (error) {
     console.error('API getWisataById error:', error.response?.status, error.response?.data);
     throw new Error('Failed to fetch wisata by id');
   }
 }
+
 
 export async function addWisata(data) {
   const res = await fetch(`${BASE_URL}/wisata`, {

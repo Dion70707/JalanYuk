@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -13,7 +12,8 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert
+  Alert,
+  Image,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -24,6 +24,21 @@ import {
   getAllGaleri,
   postReview
 } from '../API';
+
+const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
+
+const ImageWithFallback = ({ uri, style }) => {
+  const [error, setError] = useState(false);
+  return (
+    <Image
+      source={{ uri: error ? FALLBACK_IMAGE : uri }}
+      style={style}
+      resizeMode="cover"
+      onError={() => setError(true)}
+    />
+  );
+};
 
 export default function DetailScreen({ route, navigation }) {
   const { id } = route.params;
@@ -46,14 +61,15 @@ export default function DetailScreen({ route, navigation }) {
         const wisataData = await getWisataById(id);
         const galeriData = await getAllGaleri();
 
-        setWisata(wisataData);
+        const imageUrl = wisataData.id_galeri
+          ? `${IMAGE_BASE_URL}/galeri/${wisataData.id_galeri}/image`
+          : FALLBACK_IMAGE;
+
+        setWisata({ ...wisataData, image: imageUrl });
         setGaleri(galeriData.filter(item => item.wisata_id === id));
 
-        // Dummy user for demo
-        setUser({
-          id: 123,
-          foto: 'https://i.pravatar.cc/50'
-        });
+        // Dummy user
+        setUser({ id: 2, foto: 'https://i.pravatar.cc/50' });
       } catch (error) {
         console.error('Gagal memuat data:', error);
       } finally {
@@ -75,6 +91,8 @@ export default function DetailScreen({ route, navigation }) {
     })();
   }, [id]);
 
+
+
   const pickImageFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -87,10 +105,15 @@ export default function DetailScreen({ route, navigation }) {
       quality: 0.7,
     });
 
-    if (!result.cancelled) {
-      setSelectedImage(result.uri || result.assets[0].uri);
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setSelectedImage(result.assets[0].uri);
     }
   };
+
+  console.log('Diterima dari route.params:', route.params);
+console.log('ID wisata yang digunakan:', id);
+
+
 
   const submitReview = async () => {
     if (!user) {
@@ -108,7 +131,7 @@ export default function DetailScreen({ route, navigation }) {
         id_wisata: id,
         id_pengguna: user.id,
         rating: selectedRating,
-        foto: selectedImage || '-', // sesuai backend
+        foto: selectedImage || '-',
         komentar: reviewText.trim()
       };
 
@@ -146,18 +169,14 @@ export default function DetailScreen({ route, navigation }) {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView ref={scrollRef} style={{ backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
-          <Image source={{ uri: wisata.image }} style={styles.image} />
+          <ImageWithFallback uri={wisata.image} style={styles.image} />
 
           <View style={styles.tabContainer}>
-            <TouchableOpacity style={styles.activeTab}>
-              <Text style={styles.tabText}>Ringkasan</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={styles.activeTab}><Text style={styles.tabText}>Ringkasan</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('UlasanScreen')} style={styles.tab}>
               <Text style={styles.tabText}>Ulasan</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.tab}>
-              <Text style={styles.tabText}>Foto</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={styles.tab}><Text style={styles.tabText}>Foto</Text></TouchableOpacity>
           </View>
 
           <Text style={styles.title}>{wisata.name}</Text>
@@ -186,91 +205,61 @@ export default function DetailScreen({ route, navigation }) {
             )}
           </View>
 
-          <View style={styles.box}>
-            <Text style={styles.statusOpen}>Buka</Text>
-          </View>
+          <View style={styles.box}><Text style={styles.statusOpen}>Buka</Text></View>
+          <View style={styles.box}><FontAwesome name="star" size={18} color="#f4c542" /><Text style={styles.infoText}>{wisata.rating} ★</Text></View>
+          <View style={styles.box}><Ionicons name="call" size={18} color="#007bff" /><Text style={styles.infoText}>{wisata.phone}</Text></View>
+          <View style={styles.box}><Text style={styles.description}>{wisata.description}</Text></View>
 
-          <View style={styles.box}>
-            <FontAwesome name="star" size={18} color="#f4c542" />
-            <Text style={styles.infoText}>{wisata.rating} ★</Text>
-          </View>
-
-          <View style={styles.box}>
-            <Ionicons name="call" size={18} color="#007bff" />
-            <Text style={styles.infoText}>{wisata.phone}</Text>
-          </View>
-
-          <View style={styles.box}>
-            <Text style={styles.description}>{wisata.description}</Text>
-          </View>
-
-          {/* Bagian beri rating */}
           <Text style={styles.sectionTitle}>Beri Rating</Text>
           <View style={styles.reviewInputContainer}>
-            <Image
-              source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }}
-              style={styles.profileImage}
-            />
+            <Image source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
             <View style={styles.reviewRight}>
-              <Text style={styles.instructionText}>
-                Klik bintang untuk memberi ulasan:
-              </Text>
+              <Text style={styles.instructionText}>Klik bintang untuk memberi ulasan:</Text>
               <View style={styles.starContainer}>
                 {[1, 2, 3, 4, 5].map(i => (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => {
-                      setSelectedRating(i);
-                      setModalVisible(true);
-                    }}
-                  >
-                    <FontAwesome
-                      name="star"
-                      size={40}
-                      color={i <= selectedRating ? '#f4c542' : '#ccc'}
-                      style={styles.star}
-                    />
+                  <TouchableOpacity key={i} onPress={() => { setSelectedRating(i); setModalVisible(true); }}>
+                    <FontAwesome name="star" size={40} color={i <= selectedRating ? '#f4c542' : '#ccc'} style={styles.star} />
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
           </View>
 
-          {/* Tombol Pesan Tiket */}
           <TouchableOpacity
-            style={styles.bookButton}
-            onPress={() => navigation.navigate('PesanTiketScreen')} // navigasi ke halaman pesan tiket
+            style={[
+              styles.bookButton,
+              !wisata?.id && { backgroundColor: '#999' } // disable button jika wisata belum siap
+            ]}
+            onPress={() => {
+              if (!wisata || !wisata.id) {
+                Alert.alert('Tunggu', 'Data wisata belum siap.');
+                return;
+              }
+
+              console.log('Mengirim wisata ke PemesananScreen:', wisata);
+              navigation.navigate('PesanTiketScreen', { wisata });
+            }}
+
+            disabled={!wisata?.id}
           >
             <Text style={styles.bookButtonText}>Pesan Tiket</Text>
           </TouchableOpacity>
 
-          {/* Modal untuk review */}
-          <Modal
-            visible={modalVisible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={() => setModalVisible(false)}
-          >
+
+
+          <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContainer}>
                 <Text style={styles.modalTitle}>Tulis Komentar</Text>
                 <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
 
-                <TouchableOpacity
-                  onPress={pickImageFromGallery}
-                  style={{ marginBottom: 12 }}
-                >
+                <TouchableOpacity onPress={pickImageFromGallery} style={{ marginBottom: 12 }}>
                   <Text style={{ color: '#007bff' }}>
                     {selectedImage ? 'Ganti Foto dari Galeri' : 'Pilih Foto dari Galeri'}
                   </Text>
                 </TouchableOpacity>
 
-                {selectedImage && (
-                  <Image
-                    source={{ uri: selectedImage }}
-                    style={styles.selectedImage}
-                  />
-                )}
+                {selectedImage && <Image source={{ uri: selectedImage }} style={styles.selectedImage} />}
 
                 <TextInput
                   multiline
@@ -280,6 +269,7 @@ export default function DetailScreen({ route, navigation }) {
                   placeholder="Masukkan komentar..."
                   style={styles.textInput}
                 />
+
                 <View style={styles.modalButtons}>
                   <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 15 }}>
                     <Text style={{ color: '#888' }}>Batal</Text>
@@ -291,7 +281,6 @@ export default function DetailScreen({ route, navigation }) {
               </View>
             </View>
           </Modal>
-
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -307,13 +296,7 @@ const styles = StyleSheet.create({
   tabText: { color: '#fff', fontWeight: 'bold' },
   title: { fontSize: 22, fontWeight: 'bold', marginHorizontal: 12 },
   locationText: { fontSize: 14, color: '#666', marginHorizontal: 12, marginBottom: 10 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginHorizontal: 12,
-    marginTop: 20,
-    marginBottom: 8,
-  },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginHorizontal: 12, marginTop: 20, marginBottom: 8 },
   mapContainer: { height: 180, margin: 12, borderRadius: 12, overflow: 'hidden' },
   map: { flex: 1 },
   loading: { alignItems: 'center', justifyContent: 'center', height: 180 },
@@ -330,32 +313,12 @@ const styles = StyleSheet.create({
   statusOpen: { color: 'green', fontWeight: 'bold', marginRight: 4 },
   infoText: { marginLeft: 6 },
   description: { fontSize: 14, color: '#333' },
-  reviewInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 12,
-    marginBottom: 20,
-  },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  reviewRight: {
-    flex: 1,
-  },
-  instructionText: {
-    marginBottom: 6,
-    fontSize: 14,
-    color: '#333',
-  },
-  starContainer: {
-    flexDirection: 'row',
-  },
-  star: {
-    marginRight: 5,
-  },
+  reviewInputContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginBottom: 20 },
+  profileImage: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
+  reviewRight: { flex: 1 },
+  instructionText: { marginBottom: 6, fontSize: 14, color: '#333' },
+  starContainer: { flexDirection: 'row' },
+  star: { marginRight: 5 },
   bookButton: {
     backgroundColor: '#28a745',
     paddingVertical: 12,
@@ -364,11 +327,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  bookButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  bookButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -381,11 +340,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '90%',
   },
-  modalTitle: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 10,
-  },
+  modalTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 10 },
   selectedImage: {
     width: 100,
     height: 100,
