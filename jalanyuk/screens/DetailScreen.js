@@ -17,11 +17,11 @@ import {
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import {
   getWisataById,
   getAllGaleri,
-  // getLoggedInUser,
   postReview
 } from '../API';
 
@@ -36,6 +36,7 @@ export default function DetailScreen({ route, navigation }) {
   const [reviewText, setReviewText] = useState('');
   const [selectedRating, setSelectedRating] = useState(0);
   const [user, setUser] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const scrollRef = useRef();
 
@@ -44,12 +45,15 @@ export default function DetailScreen({ route, navigation }) {
       try {
         const wisataData = await getWisataById(id);
         const galeriData = await getAllGaleri();
-        // const userData = await getLoggedInUser();
-        
 
         setWisata(wisataData);
         setGaleri(galeriData.filter(item => item.wisata_id === id));
-        // setUser(userData);
+
+        // Dummy user for demo
+        setUser({
+          id: 123,
+          foto: 'https://i.pravatar.cc/50'
+        });
       } catch (error) {
         console.error('Gagal memuat data:', error);
       } finally {
@@ -71,9 +75,31 @@ export default function DetailScreen({ route, navigation }) {
     })();
   }, [id]);
 
+  const pickImageFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin Ditolak', 'Aplikasi butuh akses ke galeri.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.cancelled) {
+      setSelectedImage(result.uri || result.assets[0].uri);
+    }
+  };
+
   const submitReview = async () => {
     if (!user) {
       Alert.alert('Login Diperlukan', 'Silakan login untuk memberikan ulasan.');
+      return;
+    }
+
+    if (!reviewText.trim() || selectedRating === 0) {
+      Alert.alert('Lengkapi Ulasan', 'Silakan masukkan komentar dan rating.');
       return;
     }
 
@@ -82,15 +108,19 @@ export default function DetailScreen({ route, navigation }) {
         id_wisata: id,
         id_pengguna: user.id,
         rating: selectedRating,
-        foto: user.foto || '-',
-        komentar: reviewText
+        foto: selectedImage || '-', // sesuai backend
+        komentar: reviewText.trim()
       };
 
       await postReview(reviewPayload);
+
       Alert.alert('Sukses', 'Ulasan berhasil dikirim.');
       setModalVisible(false);
       setReviewText('');
+      setSelectedImage(null);
+      setSelectedRating(0);
     } catch (error) {
+      console.error(error);
       Alert.alert('Gagal', 'Tidak dapat mengirim ulasan.');
     }
   };
@@ -122,7 +152,7 @@ export default function DetailScreen({ route, navigation }) {
             <TouchableOpacity style={styles.activeTab}>
               <Text style={styles.tabText}>Ringkasan</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Ulasan')} style={styles.tab}>
+            <TouchableOpacity onPress={() => navigation.navigate('UlasanScreen')} style={styles.tab}>
               <Text style={styles.tabText}>Ulasan</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tab}>
@@ -157,7 +187,7 @@ export default function DetailScreen({ route, navigation }) {
           </View>
 
           <View style={styles.box}>
-            <Text style={styles.statusOpen}>Buka</Text><Text> . Tutup Pukul 16.00</Text>
+            <Text style={styles.statusOpen}>Buka</Text>
           </View>
 
           <View style={styles.box}>
@@ -174,12 +204,18 @@ export default function DetailScreen({ route, navigation }) {
             <Text style={styles.description}>{wisata.description}</Text>
           </View>
 
+          {/* Bagian beri rating */}
           <Text style={styles.sectionTitle}>Beri Rating</Text>
           <View style={styles.reviewInputContainer}>
-            <Image source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ marginBottom: 6 }}>Klik bintang untuk memberi ulasan:</Text>
-              <View style={{ flexDirection: 'row' }}>
+            <Image
+              source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }}
+              style={styles.profileImage}
+            />
+            <View style={styles.reviewRight}>
+              <Text style={styles.instructionText}>
+                Klik bintang untuk memberi ulasan:
+              </Text>
+              <View style={styles.starContainer}>
                 {[1, 2, 3, 4, 5].map(i => (
                   <TouchableOpacity
                     key={i}
@@ -192,7 +228,7 @@ export default function DetailScreen({ route, navigation }) {
                       name="star"
                       size={40}
                       color={i <= selectedRating ? '#f4c542' : '#ccc'}
-                      style={{ marginRight: 5 }}
+                      style={styles.star}
                     />
                   </TouchableOpacity>
                 ))}
@@ -200,31 +236,51 @@ export default function DetailScreen({ route, navigation }) {
             </View>
           </View>
 
+          {/* Tombol Pesan Tiket */}
+          <TouchableOpacity
+            style={styles.bookButton}
+            onPress={() => navigation.navigate('PesanTiketScreen')} // navigasi ke halaman pesan tiket
+          >
+            <Text style={styles.bookButtonText}>Pesan Tiket</Text>
+          </TouchableOpacity>
+
+          {/* Modal untuk review */}
           <Modal
             visible={modalVisible}
             animationType="slide"
             transparent={true}
             onRequestClose={() => setModalVisible(false)}
           >
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%' }}>
-                <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Tulis Komentar</Text>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Tulis Komentar</Text>
                 <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
+
+                <TouchableOpacity
+                  onPress={pickImageFromGallery}
+                  style={{ marginBottom: 12 }}
+                >
+                  <Text style={{ color: '#007bff' }}>
+                    {selectedImage ? 'Ganti Foto dari Galeri' : 'Pilih Foto dari Galeri'}
+                  </Text>
+                </TouchableOpacity>
+
+                {selectedImage && (
+                  <Image
+                    source={{ uri: selectedImage }}
+                    style={styles.selectedImage}
+                  />
+                )}
+
                 <TextInput
                   multiline
                   numberOfLines={4}
                   value={reviewText}
                   onChangeText={setReviewText}
                   placeholder="Masukkan komentar..."
-                  style={{
-                    borderColor: '#ccc',
-                    borderWidth: 1,
-                    padding: 10,
-                    borderRadius: 6,
-                    textAlignVertical: 'top',
-                  }}
+                  style={styles.textInput}
                 />
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+                <View style={styles.modalButtons}>
                   <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 15 }}>
                     <Text style={{ color: '#888' }}>Batal</Text>
                   </TouchableOpacity>
@@ -251,7 +307,13 @@ const styles = StyleSheet.create({
   tabText: { color: '#fff', fontWeight: 'bold' },
   title: { fontSize: 22, fontWeight: 'bold', marginHorizontal: 12 },
   locationText: { fontSize: 14, color: '#666', marginHorizontal: 12, marginBottom: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginHorizontal: 12, marginTop: 20 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginHorizontal: 12,
+    marginTop: 20,
+    marginBottom: 8,
+  },
   mapContainer: { height: 180, margin: 12, borderRadius: 12, overflow: 'hidden' },
   map: { flex: 1 },
   loading: { alignItems: 'center', justifyContent: 'center', height: 180 },
@@ -266,63 +328,80 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusOpen: { color: 'green', fontWeight: 'bold', marginRight: 4 },
-  infoText: { marginLeft: 6, fontSize: 14, color: '#333' },
-  description: { marginHorizontal: 12, marginTop: 8, fontSize: 14, color: '#555' },
-  ratingSummaryContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 12,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  reviewRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  barBackground: {
-    flex: 1,
-    backgroundColor: '#ddd',
-    height: 8,
-    marginLeft: 8,
-    borderRadius: 4,
-  },
-  barFill: {
-    height: 8,
-    backgroundColor: '#007bff',
-    borderRadius: 4,
-  },
-  avgRatingBox: { alignItems: 'center', marginLeft: 12 },
-  avgRating: { fontSize: 28, fontWeight: 'bold', color: '#333' },
-  commentItem: {
-    flexDirection: 'row',
-    padding: 12,
-    margin: 12,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#007bff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  commentName: { fontWeight: 'bold', color: '#007bff', marginBottom: 4 },
-  moreReviewsButton: { alignItems: 'flex-end', marginHorizontal: 12 },
-  moreReviewsText: { color: '#007bff', fontWeight: 'bold' },
+  infoText: { marginLeft: 6 },
+  description: { fontSize: 14, color: '#333' },
   reviewInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    marginBottom: 16,
-  },
-  profileImage: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
-  bookButton: {
-    backgroundColor: '#0056b3',
-    padding: 15,
-    alignItems: 'center',
     marginHorizontal: 12,
-    borderRadius: 10,
-    marginTop: 10,
-    marginBottom: 30,
+    marginBottom: 20,
   },
-  bookButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  profileImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  reviewRight: {
+    flex: 1,
+  },
+  instructionText: {
+    marginBottom: 6,
+    fontSize: 14,
+    color: '#333',
+  },
+  starContainer: {
+    flexDirection: 'row',
+  },
+  star: {
+    marginRight: 5,
+  },
+  bookButton: {
+    backgroundColor: '#28a745',
+    paddingVertical: 12,
+    marginHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  bookButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    width: '90%',
+  },
+  modalTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  selectedImage: {
+    width: 100,
+    height: 100,
+    marginBottom: 12,
+    borderRadius: 6,
+  },
+  textInput: {
+    borderColor: '#ccc',
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 6,
+    textAlignVertical: 'top',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
 });

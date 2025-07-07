@@ -27,8 +27,11 @@ import DetailWisata from './master/Wisata/DetailWisata';
 import KotaIndex from './master/Kota/Index';
 import AddKota from './master/Kota/Add';
 import DetailKota from './master/Kota/Detail';
+import UlasanScreen from './screens/UlasanScreen';
+import PesanTiketScreen from './screens/PesanTiketScreen';
 
 const Stack = createNativeStackNavigator();
+
 
 
 export default function App() {
@@ -59,7 +62,8 @@ export default function App() {
               AddWisata:'Master Wisata',
               DetailGaleri:'Detail Galeri',
               DetailWisata:'Detail Wisata',
-              
+              UlasanScreen:'Ulasan',
+              PemesananScreen:'PesanTiketScreen',
             
             };
 
@@ -185,6 +189,16 @@ export default function App() {
           <Stack.Screen
             name="DetailKota"
             component={DetailKota}
+            options={{ headerBackVisible: true }}
+          />
+          <Stack.Screen
+            name="UlasanScreen"
+            component={UlasanScreen}
+            options={{ headerBackVisible: true }}
+          />
+          <Stack.Screen
+            name="PesanTiketScreen"
+            component={PesanTiketScreen}
             options={{ headerBackVisible: true }}
           />
         </Stack.Navigator>

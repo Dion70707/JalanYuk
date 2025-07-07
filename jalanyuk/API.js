@@ -11,8 +11,58 @@ const api = axios.create({
   },
 });
 // trs 
+export async function postPemesanan(pemesananData) {
+  try {
+    const response = await api.post('/trspemesanan', pemesananData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating pemesanan:', error);
+    throw error;
+  }
+}
 
+export async function getAllReviews() {
+  try {
+    const response = await api.get('/trsriviews');
+    return response.data;  // asumsi backend mengembalikan array ulasan
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    throw error;
+  }
+}
+// Fungsi POST review
+export async function postReview(reviewData) {
+  try {
+    const response = await api.post('/trsriview', reviewData);
+    return response.data;
+  } catch (error) {
+    console.error('Error posting review:', error);
+    throw error;
+  }
+}
 // base 
+export async function getGaleriByWisataId(idWisata) {
+  try {
+    const res = await fetch(`${BASE_URL}/galeri/wisata/${idWisata}`);
+    if (!res.ok) throw new Error('Gagal mengambil galeri');
+
+    const data = await res.json();
+
+    // Tambahan pengecekan agar tidak error saat .filter()
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && typeof data === 'object') {
+      return [data]; // Ubah jadi array 1 elemen
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.warn(`❌ Error saat fetch galeri wisata ID ${idWisata}:`, error);
+    return []; // Fallback aman
+  }
+}
+
+
 export async function getAllWisata() {
   const res = await fetch(`${BASE_URL}/wisatas`);
   if (!res.ok) throw new Error('Failed to fetch wisata');
