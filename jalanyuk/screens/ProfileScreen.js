@@ -58,7 +58,7 @@ const ProfileScreen = () => {
 
         <InfoRow label="Nama Lengkap" value={pengguna.nama_lengkap} />
         <InfoRow label="Email" value={pengguna.email} />
-        <InfoRow label="Role" value={roleName} />
+        <InfoRow  value={roleName} />
         <InfoRow 
           label="Status" 
           value={

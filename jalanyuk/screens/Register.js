@@ -47,20 +47,24 @@ const RegisterScreen = ({ navigation }) => {
       await createPengguna(newPengguna);
       setLoading(false);
 
-      setNotifMessage('Registrasi berhasil!');
-      setNotifVisible(true);
-
-      setTimeout(() => {
-        setNotifVisible(false);
-        navigation.navigate('Login');
-      }, 2000);
+      Alert.alert('Registrasi Berhasil', 'Silakan login dengan akun Anda.', [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('Login'),
+        },
+      ]);
     } catch (error) {
       setLoading(false);
       console.log(error);
-      setNotifMessage('Gagal menambahkan pengguna.');
-      setNotifVisible(true);
+
+      if (error?.message?.includes('409')) {
+        Alert.alert('Email Sudah Terdaftar', 'Gunakan email lain untuk registrasi.');
+      } else {
+        Alert.alert('Error', 'Gagal menambahkan pengguna.');
+      }
     }
   };
+
 
   return (
     <LinearGradient colors={['#007bff', '#0056b3']} style={styles.container}>

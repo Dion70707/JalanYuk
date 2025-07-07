@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -11,11 +10,30 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
+  Image,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { getImageUrlById } from '../API';
+
+const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
+
+const ImageWithFallback = ({ uri, style }) => {
+  const [error, setError] = useState(false);
+  return (
+    <Image
+      source={{ uri: error ? FALLBACK_IMAGE : uri }}
+      style={style}
+      resizeMode="cover"
+      onError={() => setError(true)}
+    />
+  );
+};
 
 export default function DetailScreen({ route, navigation }) {
   const { wisata } = route.params;
@@ -28,6 +46,29 @@ export default function DetailScreen({ route, navigation }) {
   const imageUrl = getImageUrlById(wisata.id_galeri);
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const wisataData = await getWisataById(id);
+        const galeriData = await getAllGaleri();
+
+        const imageUrl = wisataData.id_galeri
+          ? `${IMAGE_BASE_URL}/galeri/${wisataData.id_galeri}/image`
+          : FALLBACK_IMAGE;
+
+        setWisata({ ...wisataData, image: imageUrl });
+        setGaleri(galeriData.filter(item => item.wisata_id === id));
+
+        // Dummy user
+        setUser({ id: 2, foto: 'https://i.pravatar.cc/50' });
+      } catch (error) {
+        console.error('Gagal memuat data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
@@ -37,24 +78,92 @@ export default function DetailScreen({ route, navigation }) {
         longitude: location.coords.longitude,
       });
     })();
-  }, []);
+  }, [id]);
+
+  const pickImageFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin Ditolak', 'Aplikasi butuh akses ke galeri.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setSelectedImage(result.assets[0].uri);
+    }
+  };
+
+  console.log('Diterima dari route.params:', route.params);
+console.log('ID wisata yang digunakan:', id);
+
+
+
+  const submitReview = async () => {
+    if (!user) {
+      Alert.alert('Login Diperlukan', 'Silakan login untuk memberikan ulasan.');
+      return;
+    }
+
+    if (!reviewText.trim() || selectedRating === 0) {
+      Alert.alert('Lengkapi Ulasan', 'Silakan masukkan komentar dan rating.');
+      return;
+    }
+
+    try {
+      const reviewPayload = {
+        id_wisata: id,
+        id_pengguna: user.id,
+        rating: selectedRating,
+        foto: selectedImage || '-',
+        komentar: reviewText.trim()
+      };
+
+      await postReview(reviewPayload);
+
+      Alert.alert('Sukses', 'Ulasan berhasil dikirim.');
+      setModalVisible(false);
+      setReviewText('');
+      setSelectedImage(null);
+      setSelectedRating(0);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Gagal', 'Tidak dapat mengirim ulasan.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text>Memuat detail wisata...</Text>
+      </View>
+    );
+  }
+
+  if (!wisata) {
+    return (
+      <View style={styles.centered}>
+        <Text>Data wisata tidak ditemukan.</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView ref={scrollRef} style={{ backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
-          <Image source={{ uri: imageUrl }} style={styles.image} />
+          <ImageWithFallback uri={wisata.image} style={styles.image} />
 
           <View style={styles.tabContainer}>
-            <TouchableOpacity style={styles.activeTab}>
-              <Text style={styles.tabText}>Ringkasan</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Ulasan')} style={styles.tab}>
+            <TouchableOpacity style={styles.activeTab}><Text style={styles.tabText}>Ringkasan</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('UlasanScreen')} style={styles.tab}>
               <Text style={styles.tabText}>Ulasan</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.tab}>
-              <Text style={styles.tabText}>Foto</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={styles.tab}><Text style={styles.tabText}>Foto</Text></TouchableOpacity>
           </View>
 
           <Text style={styles.title}>{wisata.nama_wisata}</Text>
@@ -86,97 +195,82 @@ export default function DetailScreen({ route, navigation }) {
             )}
           </View>
 
-          <View style={styles.box}>
-            <Text style={styles.statusOpen}>Buka</Text>
-            <Text> . Tutup Pukul {wisata.jam_tutup}</Text>
-          </View>
+          <View style={styles.box}><Text style={styles.statusOpen}>Buka</Text></View>
+          <View style={styles.box}><FontAwesome name="star" size={18} color="#f4c542" /><Text style={styles.infoText}>{wisata.rating} ★</Text></View>
+          <View style={styles.box}><Ionicons name="call" size={18} color="#007bff" /><Text style={styles.infoText}>{wisata.phone}</Text></View>
+          <View style={styles.box}><Text style={styles.description}>{wisata.description}</Text></View>
 
-          <View style={styles.box}>
-            <FontAwesome name="star" size={18} color="#f4c542" />
-            <Text style={styles.infoText}>
-              {wisata.rating_rata} ★ ({wisata.jumlah_review} ulasan)
-            </Text>
-          </View>
-
-          <View style={styles.box}>
-            <Ionicons name="call" size={18} color="#007bff" />
-            <Text style={styles.infoText}>{wisata.no_telp}</Text>
-          </View>
-
-          <View style={styles.box}>
-            <Text style={styles.description}>{wisata.deskripsi}</Text>
-          </View>
-           
-          {/* Ringkasan Ulasan */}
-          <Text style={styles.sectionTitle}>Ringkasan Ulasan</Text>
-          <View style={styles.ratingSummaryContainer}>
-            <View style={{ flex: 1 }}>
-              {[5, 4, 3, 2, 1].map((star) => (
-                <View key={star} style={styles.reviewRow}>
-                  <Text>{star}</Text>
-                  <View style={styles.barBackground}>
-                    <View style={[styles.barFill, { width: `${Math.random() * 80 + 10}%` }]} />
-                  </View>
-                </View>
-              ))}
-            </View>
-            <View style={styles.avgRatingBox}>
-              <Text style={styles.avgRating}>{wisata.rating_rata}</Text>
-              <Text style={{ color: '#999' }}>({wisata.jumlah_review})</Text>
-            </View>
-          </View>
-
-          <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
-            <Text style={{ fontStyle: 'italic' }}>
-              “Saya Pernah ke wisata ini, asik sekali dan menyenangkan apalagi sama pasangan tercinta”
-            </Text>
-            <Text style={{ fontStyle: 'italic', marginTop: 8 }}>
-              “Saya Pernah ke wisata ini, HTS-an juga menyenangkan”
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={{
-              backgroundColor: '#007bff',
-              marginHorizontal: 16,
-              padding: 12,
-              borderRadius: 10,
-              marginTop: 12,
-            }}
-          >
-            <Text style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>Ulasan Lainnya</Text>
-          </TouchableOpacity>
-
-          {/* Form Rating */}
-          <Text style={styles.sectionTitle}>Beri Rating dan Tulis Ulasan</Text>
+          <Text style={styles.sectionTitle}>Beri Rating</Text>
           <View style={styles.reviewInputContainer}>
-            <Image source={{ uri: 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ marginBottom: 6 }}>Beri Rating:</Text>
-              <View style={{ flexDirection: 'row' }}>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => {
-                      setSelectedRating(i);
-                      navigation.navigate('ReviewTransaksi');
-                    }}
-                  >
-                    <FontAwesome
-                      name="star"
-                      size={45}
-                      color={i <= selectedRating ? '#f4c542' : '#ccc'}
-                      style={{ marginRight: 5 }}
-                    />
+            <Image source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
+            <View style={styles.reviewRight}>
+              <Text style={styles.instructionText}>Klik bintang untuk memberi ulasan:</Text>
+              <View style={styles.starContainer}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <TouchableOpacity key={i} onPress={() => { setSelectedRating(i); setModalVisible(true); }}>
+                    <FontAwesome name="star" size={40} color={i <= selectedRating ? '#f4c542' : '#ccc'} style={styles.star} />
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.bookButton}>
-            <Text style={styles.bookButtonText}>Pesan Tiket - Rp{wisata.harga_tiket?.toLocaleString()}</Text>
+          <TouchableOpacity
+            style={[
+              styles.bookButton,
+              !wisata?.id && { backgroundColor: '#999' } // disable button jika wisata belum siap
+            ]}
+            onPress={() => {
+              if (!wisata || !wisata.id) {
+                Alert.alert('Tunggu', 'Data wisata belum siap.');
+                return;
+              }
+
+              console.log('Mengirim wisata ke PemesananScreen:', wisata);
+              navigation.navigate('PesanTiketScreen', { wisata });
+            }}
+
+            disabled={!wisata?.id}
+          >
+            <Text style={styles.bookButtonText}>Pesan Tiket</Text>
           </TouchableOpacity>
+
+
+
+          <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Tulis Komentar</Text>
+                <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
+
+                <TouchableOpacity onPress={pickImageFromGallery} style={{ marginBottom: 12 }}>
+                  <Text style={{ color: '#007bff' }}>
+                    {selectedImage ? 'Ganti Foto dari Galeri' : 'Pilih Foto dari Galeri'}
+                  </Text>
+                </TouchableOpacity>
+
+                {selectedImage && <Image source={{ uri: selectedImage }} style={styles.selectedImage} />}
+
+                <TextInput
+                  multiline
+                  numberOfLines={4}
+                  value={reviewText}
+                  onChangeText={setReviewText}
+                  placeholder="Masukkan komentar..."
+                  style={styles.textInput}
+                />
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 15 }}>
+                    <Text style={{ color: '#888' }}>Batal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={submitReview}>
+                    <Text style={{ color: '#007bff', fontWeight: 'bold' }}>Kirim</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -191,7 +285,7 @@ const styles = StyleSheet.create({
   tabText: { color: '#fff', fontWeight: 'bold' },
   title: { fontSize: 22, fontWeight: 'bold', marginHorizontal: 12 },
   locationText: { fontSize: 14, color: '#666', marginHorizontal: 12, marginBottom: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginHorizontal: 12, marginTop: 20 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginHorizontal: 12, marginTop: 20, marginBottom: 8 },
   mapContainer: { height: 180, margin: 12, borderRadius: 12, overflow: 'hidden' },
   map: { flex: 1 },
   loading: { alignItems: 'center', justifyContent: 'center', height: 180 },
@@ -206,60 +300,52 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusOpen: { color: 'green', fontWeight: 'bold', marginRight: 4 },
-  infoText: { marginLeft: 6, fontSize: 14, color: '#333' },
-  description: { marginHorizontal: 12, marginTop: 8, fontSize: 14, color: '#555' },
+  infoText: { marginLeft: 6 },
+  description: { fontSize: 14, color: '#333' },
+  reviewInputContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginBottom: 20 },
+  profileImage: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
+  reviewRight: { flex: 1 },
+  instructionText: { marginBottom: 6, fontSize: 14, color: '#333' },
+  starContainer: { flexDirection: 'row' },
+  star: { marginRight: 5 },
   bookButton: {
-    backgroundColor: '#0056b3',
-    padding: 15,
-    alignItems: 'center',
+    backgroundColor: '#28a745',
+    paddingVertical: 12,
     marginHorizontal: 12,
-    borderRadius: 10,
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  bookButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  ratingSummaryContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 12,
-    marginTop: 10,
+    borderRadius: 8,
     alignItems: 'center',
+    marginBottom: 20,
   },
-  reviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  barBackground: {
+  bookButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  modalOverlay: {
     flex: 1,
-    backgroundColor: '#ddd',
-    height: 8,
-    marginLeft: 8,
-    borderRadius: 4,
-  },
-  barFill: {
-    height: 8,
-    backgroundColor: '#007bff',
-    borderRadius: 4,
-  },
-  avgRatingBox: {
+    justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  avgRating: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+  modalContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    width: '90%',
   },
-  reviewInputContainer: {
+  modalTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 10 },
+  selectedImage: {
+    width: 100,
+    height: 100,
+    marginBottom: 12,
+    borderRadius: 6,
+  },
+  textInput: {
+    borderColor: '#ccc',
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 6,
+    textAlignVertical: 'top',
+  },
+  modalButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    marginBottom: 16,
-  },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    justifyContent: 'flex-end',
+    marginTop: 12,
   },
 });

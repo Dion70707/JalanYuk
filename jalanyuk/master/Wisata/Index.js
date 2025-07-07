@@ -10,7 +10,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
-import { getAllWisata, deleteWisata } from '../../API'; // Ganti API
+import { getAllWisata, deleteWisata } from '../../API'; 
 import { Ionicons } from '@expo/vector-icons';
 import Tab from '../../components/Tab';
 import Notifikasi from '../../components/Notifikasi';

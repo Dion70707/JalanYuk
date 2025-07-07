@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';  
 import { getAllPenggunas } from '../API';
 import Notifikasi from '../components/Notifikasi'; // Sesuaikan path jika perlu
 

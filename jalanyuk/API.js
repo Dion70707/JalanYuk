@@ -11,6 +11,150 @@ const api = axios.create({
   },
 });
 
+export async function getAllReviews() {
+  try {
+    const response = await api.get('/trsriviews');
+    return response.data;  // asumsi backend mengembalikan array ulasan
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    throw error;
+  }
+}
+// Fungsi POST review
+export async function postReview(reviewData) {
+  try {
+    const response = await api.post('/trsriview', reviewData);
+    return response.data;
+  } catch (error) {
+    console.error('Error posting review:', error);
+    throw error;
+  }
+}
+// base 
+export async function getGaleriByWisataId(idWisata) {
+  try {
+    const res = await fetch(`${BASE_URL}/galeri/wisata/${idWisata}`);
+    if (!res.ok) throw new Error('Gagal mengambil galeri');
+
+    const data = await res.json();
+
+    // Tambahan pengecekan agar tidak error saat .filter()
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && typeof data === 'object') {
+      return [data]; // Ubah jadi array 1 elemen
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.warn(`❌ Error saat fetch galeri wisata ID ${idWisata}:`, error);
+    return []; // Fallback aman
+  }
+}
+
+
+export async function getAllWisata() {
+  const res = await fetch(`${BASE_URL}/wisatas`);
+  if (!res.ok) throw new Error('Failed to fetch wisata');
+  return res.json();
+}
+
+
+export async function getWisataById(id) {
+  try {
+    const response = await axios.get(`${BASE_URL}/wisatas`, {
+      params: { id: id },
+    });
+
+    // Ambil wisata pertama dari array jika response-nya berupa array
+    const data = Array.isArray(response.data) ? response.data[0] : response.data;
+
+    return data;
+  } catch (error) {
+    console.error('API getWisataById error:', error.response?.status, error.response?.data);
+    throw new Error('Failed to fetch wisata by id');
+  }
+}
+
+
+export async function addWisata(data) {
+  const res = await fetch(`${BASE_URL}/wisata`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to add wisata');
+  return res.json();
+}
+
+export async function updateWisata(data) {
+  const res = await fetch(`${BASE_URL}/wisata`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update wisata');
+  return res.json();
+}
+
+export async function deleteWisata(id) {
+  const res = await fetch(`${BASE_URL}/wisata?id=${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete wisata');
+  return res.json();
+}
+
+//galeri
+export async function getAllGaleri() {
+  const res = await fetch(`${BASE_URL}/galeris`);
+  return res.json();
+}
+
+export async function getGaleriById(id) {
+  const res = await fetch(`${BASE_URL}/galeri?id=${id}`);
+  return res.json();
+}
+
+export const addGaleri = async (formData) => {
+  try {
+    const response = await fetch(`${BASE_URL}/upload-galeri`, {
+      method: 'POST',
+      body: formData,
+      // ✅ Jangan set headers Content-Type!
+    });
+    return response;
+  } catch (error) {
+    console.error('API error:', error);
+    throw error;
+  }
+};
+
+
+export const updateGaleri = async (formData) => {
+  try {
+    const response = await fetch(`${BASE_URL}/galeri`, {
+      method: 'PUT',
+      body: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Update error:', error);
+    throw error;
+  }
+};
+
+
+
+export async function deleteGaleri(id) {
+  const res = await fetch(`${BASE_URL}/galeri?id=${id}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
 // ====== ROLE API ======
 export const getAllRoles = async (status) => {
   try {
