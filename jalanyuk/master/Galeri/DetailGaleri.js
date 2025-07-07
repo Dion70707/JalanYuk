@@ -17,6 +17,9 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { getGaleriById, updateGaleri } from '../../API';
 import { launchImageLibrary } from 'react-native-image-picker';
 
+// Ganti sesuai IP lokal server kamu
+const IMAGE_BASE_URL = 'http://192.168.1.6:8080';
+
 const DetailGaleri = () => {
   const route = useRoute();
   const navigation = useNavigation();
@@ -46,6 +49,7 @@ const DetailGaleri = () => {
   };
 
   const handleChangeKeterangan = (text) => {
+    console.log('Keterangan changed:', text);
     setKeterangan(text);
     setGaleri((prev) => ({ ...prev, keterangan: text }));
   };
@@ -86,7 +90,6 @@ const DetailGaleri = () => {
       return;
     }
 
-    console.log('Image picker opened');
     launchImageLibrary(
       {
         mediaType: 'mixed',
@@ -94,7 +97,6 @@ const DetailGaleri = () => {
         selectionLimit: 1,
       },
       (response) => {
-        console.log('Image picker response:', response);
         if (response.didCancel) return;
         if (response.errorCode) {
           Alert.alert('Error', 'Gagal memilih gambar: ' + response.errorMessage);
@@ -108,28 +110,44 @@ const DetailGaleri = () => {
   };
 
   const handleUpdate = async () => {
-    setUpdating(true);
+    if (!keterangan.trim()) {
+      return Alert.alert('Validasi', 'Keterangan wajib diisi.');
+    }
+  
+    const formData = new FormData();
+    formData.append('id', galeri.id.toString());
+    formData.append('keterangan', keterangan); // Ambil langsung dari input
+  
+    if (newImage) {
+      formData.append('file', {
+        uri: newImage.uri,
+        name: newImage.fileName || 'update.jpg',
+        type: newImage.type || 'image/jpeg',
+      });
+    }
+  
     try {
-      const galeriUpdate = {
-        id: galeri.id,
-        url_foto: newImage ? newImage.uri : galeri.url_foto,
-        keterangan,
-        status: galeri.status,
-      };
-
-      const res = await updateGaleri(galeriUpdate);
-      if (res.status === 200) {
-        Alert.alert('Sukses', 'Galeri berhasil diperbarui');
+      const res = await fetch(`${IMAGE_BASE_URL}/galeri`, {
+        method: 'PUT',
+        body: formData, // Agar multi-part diproses benar
+        // Jangan set Content-Type manual
+      });
+  
+      const result = await res.json();
+      console.log('Update response:', res.status, result);
+  
+      if (res.ok && result.result === 200) {
+        Alert.alert('Sukses', 'Data berhasil diperbarui');
         navigation.goBack();
       } else {
-        Alert.alert('Gagal', res.message || 'Gagal update galeri');
+        Alert.alert('Gagal', result.message || 'Update gagal');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Gagal menghubungi server');
-    } finally {
-      setUpdating(false);
+    } catch (err) {
+      console.error('Error update:', err);
+      Alert.alert('Error', 'Tidak dapat menghubungi server');
     }
   };
+  
 
   const handleToggleStatus = async () => {
     const newStatus = galeri.status === 'aktif' ? 'tidak aktif' : 'aktif';
@@ -161,7 +179,14 @@ const DetailGaleri = () => {
 
         <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
           {galeri?.url_foto ? (
-            <Image source={{ uri: galeri.url_foto }} style={styles.imagePreview} />
+            <Image
+              source={{
+                uri: galeri.url_foto.startsWith('http')
+                  ? galeri.url_foto
+                  : IMAGE_BASE_URL + galeri.url_foto,
+              }}
+              style={styles.imagePreview}
+            />
           ) : (
             <Text style={styles.imageText}>Ketuk untuk pilih gambar</Text>
           )}
@@ -185,7 +210,9 @@ const DetailGaleri = () => {
           onPress={handleUpdate}
           disabled={updating}
         >
-          <Text style={styles.buttonText}>{updating ? 'Menyimpan...' : 'Update Galeri'}</Text>
+          <Text style={styles.buttonText}>
+            {updating ? 'Menyimpan...' : 'Update Galeri'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.deleteButton} onPress={handleToggleStatus}>

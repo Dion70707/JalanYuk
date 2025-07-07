@@ -8,13 +8,15 @@ import {
   TextInput,
   StyleSheet,
   SafeAreaView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getAllWisata } from '../API'; // Pastikan path dan fungsi benar
+import { getAllWisata, getGaleriById } from '../API';
 import Tab from '../components/Tab';
 import Notifikasi from '../components/Notifikasi';
+
+// Ganti sesuai IP server lokal kamu
+const IMAGE_BASE_URL = 'http://192.168.1.6:8080';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -27,23 +29,41 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       const response = await getAllWisata();
-      console.log('API response:', response);
   
       let data = Array.isArray(response) ? response : [];
   
-      // Map data API ke format UI
-      const mappedData = data.map((item) => ({
-        id: item.id,
-        name: item.nama_wisata,
-        location: item.alamat,
-        rating: item.rating_rata,
-        reviewCount: item.jumlah_review,
-        category: item.kategori,
-        description: item.deskripsi,
-        image: 'https://via.placeholder.com/400x200.png?text=' + encodeURIComponent(item.nama_wisata), // Ganti jika ada image asli
-        latitude: parseFloat(item.koordinat_lat),
-        longitude: parseFloat(item.koordinat_lng),
-      }));
+      const mappedData = await Promise.all(
+        data.map(async (item) => {
+          let imageUrl = '';
+  
+          try {
+            const galeriList = await getGaleriByWisataId(item.id);
+            if (Array.isArray(galeriList) && galeriList.length > 0) {
+              const firstFoto = galeriList[0].url_foto;
+              imageUrl = firstFoto.startsWith('http')
+                ? firstFoto
+                : `${BASE_URL}${firstFoto}`;
+            } else {
+              console.log(`⚠️ Tidak ada gambar untuk ${item.nama_wisata}`);
+            }
+          } catch (err) {
+            console.warn(`❌ Gagal ambil galeri untuk ${item.nama_wisata}`, err);
+          }
+  
+          return {
+            id: item.id,
+            name: item.nama_wisata,
+            location: item.alamat,
+            rating: item.rating_rata,
+            reviewCount: item.jumlah_review,
+            category: item.kategori,
+            description: item.deskripsi,
+            image: imageUrl || 'https://via.placeholder.com/400x200.png?text=No+Image',
+            latitude: parseFloat(item.koordinat_lat),
+            longitude: parseFloat(item.koordinat_lng),
+          };
+        })
+      );
   
       setWisataData(mappedData);
     } catch (error) {
@@ -53,7 +73,6 @@ export default function HomeScreen() {
       setLoading(false);
     }
   };
-  
 
   useFocusEffect(
     useCallback(() => {

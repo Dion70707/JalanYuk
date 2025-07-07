@@ -33,14 +33,12 @@ const AddGaleri = () => {
         quality: 1,
       });
 
-      if (!result.canceled && result.assets?.length > 0) {
+      if (!result.canceled && result.assets.length > 0) {
         setImageUri(result.assets[0].uri);
-      } else {
-        console.log('Pemilihan gambar dibatalkan atau kosong.');
       }
     } catch (error) {
       console.error('Gagal membuka galeri:', error);
-      Alert.alert('Gagal', error.message || 'Terjadi kesalahan saat memilih gambar.');
+      Alert.alert('Error', 'Gagal membuka galeri.');
     }
   };
 
@@ -49,31 +47,49 @@ const AddGaleri = () => {
       Alert.alert('Validasi', 'Gambar dan keterangan wajib diisi.');
       return;
     }
-
+  
+    const filename = imageUri.split('/').pop();
+    const match = /\.(\w+)$/.exec(filename);
+    const fileType = match ? `image/${match[1]}` : `image`;
+  
     const formData = new FormData();
     formData.append('file', {
       uri: imageUri,
-      name: 'foto.jpg',
-      type: 'image/jpeg',
+      name: filename,
+      type: fileType,
     });
     formData.append('keterangan', keterangan);
-
+  
     setLoading(true);
     try {
       const response = await addGaleri(formData);
-      if (response.status === 200) {
+  
+      // ✅ Tambahkan logging DI SINI
+      console.log('Status:', response.status);
+      console.log('OK:', response.ok);
+      console.log('Response headers:', response.headers);
+  
+      if (response.ok) {
+        const data = await response.json();
         Alert.alert('Sukses', 'Galeri berhasil ditambahkan.');
         navigation.goBack();
       } else {
-        Alert.alert('Gagal', 'Terjadi kesalahan saat upload.');
+        let errorMsg = 'Terjadi kesalahan saat upload.';
+        try {
+          const errData = await response.json();
+          errorMsg = errData.message || errorMsg;
+        } catch (_) {}
+        Alert.alert('Gagal', errorMsg);
       }
     } catch (error) {
-      console.error('Upload error:', error.message);
+      console.error('Upload error:', error);
       Alert.alert('Error', 'Gagal menghubungi server.');
     } finally {
       setLoading(false);
     }
   };
+  
+  
 
   return (
     <SafeAreaView style={styles.container}>
