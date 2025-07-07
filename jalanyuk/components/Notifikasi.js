@@ -18,20 +18,30 @@ const Notifikasi = ({ message, visible, onClose, type = 'success' }) => {
   const backgroundColor = type === 'success' ? '#28a745' : '#dc3545';
 
   useEffect(() => {
+    let timer;
+
     if (visible) {
       setIsVisible(true);
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 300,
-        useNativeDriver: true,      
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 300,
         useNativeDriver: true,
-      }).start(() => setIsVisible(false));
+      }).start();
+
+      // Auto close after 1.5 seconds
+      timer = setTimeout(() => {
+        Animated.timing(slideAnim, {
+          toValue: -100,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          setIsVisible(false);
+          if (onClose) onClose();
+        });
+      }, 1500);
     }
+
+    return () => clearTimeout(timer);
   }, [visible]);
 
   if (!isVisible) return null;
@@ -49,9 +59,9 @@ const Notifikasi = ({ message, visible, onClose, type = 'success' }) => {
       <Text style={styles.text} numberOfLines={2}>
         {message}
       </Text>
-      <TouchableOpacity onPress={onClose} style={styles.close}>
+      {/* <TouchableOpacity onPress={onClose} style={styles.close}>
         <Ionicons name="close" size={20} color="white" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </Animated.View>
   );
 };
@@ -61,10 +71,10 @@ export default Notifikasi;
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 40,
+    top: 2,
     left: 20,
     right: 20,
-    borderRadius: 12, // ✅ Membulatkan kanan kiri
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     flexDirection: 'row',

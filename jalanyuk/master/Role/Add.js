@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     marginBottom: 400,
   },
   cardHeader: {
-    backgroundColor: '#777',
+    backgroundColor: '#007bff',
     padding: 14,
     alignItems: 'center',
   },

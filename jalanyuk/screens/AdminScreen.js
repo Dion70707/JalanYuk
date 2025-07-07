@@ -36,14 +36,8 @@ const AdminScreen = () => {
               onPress={() => {
                 if (item.title === 'Role') {
                   navigation.navigate('RoleIndex');
-                } else if (item.title === 'Pengguna') {
+                }else if (item.title === 'Pengguna') {
                   navigation.navigate('PenggunaIndex');
-                } else if (item.title === 'Galeri') {
-                  navigation.navigate('GaleriIndex');
-                } else if (item.title === 'Wisata') {
-                  navigation.navigate('WisataIndex');
-                }else if (item.title === 'Kota') {
-                  navigation.navigate('KotaIndex');
                 }
               }}
             >

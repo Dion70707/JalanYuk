@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,39 +6,27 @@ import {
   TextInput,
   StyleSheet,
   SafeAreaView,
+  Platform,
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getAllWisata } from '../API';
-import Tab from '../components/Tab';
-import Notifikasi from '../components/Notifikasi';
-import { Image } from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { getAllWisata, getImageUrlById } from '../API';
 
-const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
-const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
+const TABS = [
+  { key: 'Beranda', label: 'Beranda', icon: 'home' },
+  { key: 'Favorit', label: 'Favorit', icon: 'heart' },
+  { key: 'MyOrder', label: 'My Order', icon: 'ticket' },
+  { key: 'Profile', label: 'Profile', icon: 'user' },
+];
 
-// Komponen gambar fallback
-const ImageWithFallback = ({ uri, style }) => {
-  const [error, setError] = useState(false);
-  return (
-    <Image
-      source={{ uri: error ? FALLBACK_IMAGE : uri }}
-      style={style}
-      resizeMode="cover"
-      onError={() => setError(true)}
-    />
-  );
-};
-
-export default function HomeScreen() {
-  const navigation = useNavigation();
+export default function HomeScreen({ navigation }) {
   const [search, setSearch] = useState('');
-  const [selectedTab, setSelectedTab] = useState('Dashboard');
-  const [wisataData, setWisataData] = useState([]);
+  const [selectedTab, setSelectedTab] = useState('Beranda');
+  const [wisataList, setWisataList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchWisataData = async () => {
     try {
       setLoading(true);
       const response = await getAllWisata();
@@ -70,28 +58,52 @@ export default function HomeScreen() {
 
       setWisataData(mappedData);
     } catch (error) {
-      console.error('Gagal fetch data wisata:', error);
-      Notifikasi('Gagal memuat data wisata.');
+      console.error('Gagal memuat data wisata:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [])
+  useEffect(() => {
+    fetchWisataData();
+  }, []);
+
+  const filteredData = wisataList.filter((item) =>
+    item.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredData = wisataData.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
+  const handleTabPress = (tabKey) => {
+    setSelectedTab(tabKey);
+    if (tabKey === 'Favorit') navigation.navigate('Favorit');
+    else if (tabKey === 'Profile') navigation.navigate('Profile');
+    else if (tabKey === 'MyOrder') navigation.navigate('MyOrder');
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <Image source={{ uri: item.imageUrl }} style={styles.image} />
+      <View style={styles.cardContent}>
+        <View style={styles.info}>
+          <Text style={styles.title}>{item.name}</Text>
+          <Text style={styles.subtitle}>
+            {item.location} • ⭐ {item.rating ?? 0} ({item.reviewCount ?? 0} reviews)
+          </Text>
+          <Text style={styles.category}>{item.kategori}</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Detail', { wisata: item })}
+          style={styles.detailButton}
+        >
+          <Text style={styles.detailButtonText}>Detail</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.header}>Wisata Indonesia</Text>
-
         <TextInput
           placeholder="Cari tempat wisata..."
           value={search}
@@ -99,9 +111,8 @@ export default function HomeScreen() {
           style={styles.search}
           placeholderTextColor="#999"
         />
-
         {loading ? (
-          <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />
+          <ActivityIndicator size="large" color="#007bff" />
         ) : (
           <FlatList
             data={filteredData}
@@ -131,29 +142,27 @@ export default function HomeScreen() {
           />
         )}
       </View>
-
-      <Tab selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
+      <View style={styles.tabBar}>
+        {TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={styles.tabItem}
+            onPress={() => handleTabPress(tab.key)}
+          >
+            <Icon name={tab.icon} size={20} color="#fff" style={styles.tabIcon} />
+            <Text style={styles.tabLabel}>{tab.label}</Text>
+            {selectedTab === tab.key && <View style={styles.tabIndicator} />}
+          </TouchableOpacity>
+        ))}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f2f2f2',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 12,
-    backgroundColor: '#f2f2f2',
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
+  safeArea: { flex: 1, backgroundColor: '#f2f2f2' },
+  container: { flex: 1, paddingHorizontal: 12, backgroundColor: '#f2f2f2' },
+  header: { fontSize: 28, fontWeight: 'bold', color: '#333', marginBottom: 12, textAlign: 'center' },
   search: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -184,32 +193,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
   },
-  info: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  subtitle: {
-    color: '#666',
-    marginTop: 4,
-  },
-  category: {
-    marginTop: 6,
-    fontStyle: 'italic',
-    color: '#007bff',
-  },
+  info: { flex: 1, paddingRight: 10 },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+  subtitle: { color: '#666', marginTop: 4 },
+  category: { marginTop: 6, fontStyle: 'italic', color: '#007bff' },
   detailButton: {
     backgroundColor: '#007bff',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 10,
   },
-  detailButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  detailButtonText: { color: '#fff', fontWeight: 'bold' },
+  tabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    backgroundColor: '#007bff',
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  tabItem: { alignItems: 'center', flex: 1 },
+  tabIcon: { marginBottom: 2 },
+  tabLabel: { color: '#fff', fontSize: 12, marginTop: 2 },
+  tabIndicator: {
+    height: 4,
+    backgroundColor: '#fff',
+    borderRadius: 2,
+    marginTop: 6,
+    width: '50%',
+    alignSelf: 'center',
   },
 });

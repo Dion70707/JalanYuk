@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getAllRoles, createPengguna } from '../../API';
+import { Picker } from '@react-native-picker/picker';
+import Notifikasi from '../../components/Notifikasi';
 
 const AddPengguna = ({ route }) => {
   const navigation = useNavigation();
@@ -23,6 +25,10 @@ const AddPengguna = ({ route }) => {
   const [password, setPassword] = useState('');
   const [idRole, setIdRole] = useState('');
   const [roles, setRoles] = useState([]);
+
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifType, setNotifType] = useState('success');
 
   const user = route.params?.user;
   const createdBy = user?.nama_lengkap || 'unknown';
@@ -34,8 +40,8 @@ const AddPengguna = ({ route }) => {
       const roleArray = Array.isArray(data)
         ? data
         : Array.isArray(data?.data)
-        ? data.data
-        : [];
+          ? data.data
+          : [];
       setRoles(roleArray.filter((r) => r.status === 'Aktif'));
     } catch (error) {
       console.log('Error fetching roles:', error);
@@ -64,23 +70,40 @@ const AddPengguna = ({ route }) => {
 
     try {
       await createPengguna(newPengguna);
-      navigation.navigate('PenggunaIndex', { showSuccessMessage: true });
+      setNotifMessage('Data berhasil ditambahkan');
+      setNotifType('success');
+      setNotifVisible(true);
+      setTimeout(() => {
+        navigation.navigate('PenggunaIndex', { showSuccessMessage: true });
+      }, 1200);
     } catch (error) {
       console.log(error);
-      Alert.alert('Error', 'Gagal menambahkan pengguna.');
+      setNotifMessage('Gagal menambahkan pengguna');
+      setNotifType('error');
+      setNotifVisible(true);
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Notifikasi
+        visible={notifVisible}
+        message={notifMessage}
+        type={notifType}
+        onClose={() => setNotifVisible(false)}
+      />
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Tambah Pengguna</Text>
+              <Text style={styles.cardTitle}>Add User</Text>
             </View>
 
             <View style={styles.cardBody}>
@@ -110,14 +133,23 @@ const AddPengguna = ({ route }) => {
                 secureTextEntry
               />
 
-              <Text style={styles.label}>ID Role</Text>
-              <TextInput
-                style={styles.input}
-                value={idRole}
-                onChangeText={setIdRole}
-                placeholder="Contoh: 1 =  Admin , 2 = Pengunjung"
-                keyboardType="numeric"
-              />
+              <Text style={styles.label}>Pilih Role</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={idRole}
+                  onValueChange={(itemValue) => setIdRole(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="-- Pilih Role --" value="" />
+                  {roles.map((role) => (
+                    <Picker.Item
+                      key={role.id}
+                      label={role.nama_role}
+                      value={role.id.toString()}
+                    />
+                  ))}
+                </Picker>
+              </View>
 
               <View style={styles.buttonRow}>
                 <TouchableOpacity
@@ -161,6 +193,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    marginTop: -100,
   },
   cardHeader: {
     backgroundColor: '#007bff',
@@ -189,6 +222,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 16,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
   },
   buttonRow: {
     flexDirection: 'row',

@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal,
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
@@ -17,17 +16,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';  
 import { getAllPenggunas } from '../API';
+import Notifikasi from '../components/Notifikasi'; // Sesuaikan path jika perlu
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifType, setNotifType] = useState('error');
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      setShowModal(true);
+      setNotifMessage('Email dan password wajib diisi.');
+      setNotifType('error');
+      setNotifVisible(true);
       return;
     }
 
@@ -37,21 +41,32 @@ const LoginScreen = ({ navigation }) => {
       const user = users.find(
         (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
       );
+
       if (user) {
-        // Simpan userId ke AsyncStorage
         await AsyncStorage.setItem('userId', user.id.toString());
 
-        if (user.id_role === 1) {
-          navigation.replace('Admin');
-        } else {
-          navigation.replace('Beranda');
-        }
+        setNotifMessage('Login berhasil!');
+        setNotifType('success');
+        setNotifVisible(true);
+
+        setTimeout(() => {
+          setNotifVisible(false);
+          if (user.id_role === 1) {
+            navigation.replace('Admin');
+          } else {
+            navigation.replace('Beranda');
+          }
+        }, 1500);
       } else {
-        setShowModal(true);
+        setNotifMessage('Email atau password salah.');
+        setNotifType('error');
+        setNotifVisible(true);
       }
     } catch (error) {
       console.log('Login error:', error);
-      setShowModal(true);
+      setNotifMessage('Terjadi kesalahan saat login.');
+      setNotifType('error');
+      setNotifVisible(true);
     }
     setLoading(false);
   };
@@ -120,29 +135,13 @@ const LoginScreen = ({ navigation }) => {
               </Text>
             </View>
 
-            {/* Modal Alert */}
-            <Modal
-              transparent
-              animationType="fade"
-              visible={showModal}
-              onRequestClose={() => setShowModal(false)}
-            >
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalCard}>
-                  <Text style={styles.modalIcon}>❌</Text>
-                  <Text style={styles.modalTitle}>Login Gagal</Text>
-                  <Text style={styles.modalMessage}>
-                    Email atau password salah. Silakan coba lagi.
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.modalButton}
-                    onPress={() => setShowModal(false)}
-                  >
-                    <Text style={styles.modalButtonText}>OK</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Modal>
+            {/* Notifikasi */}
+            <Notifikasi
+              visible={notifVisible}
+              message={notifMessage}
+              onClose={() => setNotifVisible(false)}
+              type={notifType}
+            />
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -237,48 +236,6 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     color: '#007bff',
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCard: {
-    width: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 25,
-    alignItems: 'center',
-    elevation: 10,
-  },
-  modalIcon: {
-    fontSize: 50,
-    color: '#e74c3c',
-    marginBottom: 10,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 6,
-  },
-  modalMessage: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalButton: {
-    backgroundColor: '#e74c3c',
-    borderRadius: 6,
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
   },
 });

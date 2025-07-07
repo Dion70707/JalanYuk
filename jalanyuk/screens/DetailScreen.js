@@ -17,13 +17,8 @@ import {
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
-import {
-  getWisataById,
-  getAllGaleri,
-  postReview
-} from '../API';
+import { getImageUrlById } from '../API';
 
 const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
@@ -41,19 +36,14 @@ const ImageWithFallback = ({ uri, style }) => {
 };
 
 export default function DetailScreen({ route, navigation }) {
-  const { id } = route.params;
-
-  const [wisata, setWisata] = useState(null);
-  const [galeri, setGaleri] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { wisata } = route.params;
   const [userLocation, setUserLocation] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [reviewText, setReviewText] = useState('');
   const [selectedRating, setSelectedRating] = useState(0);
-  const [user, setUser] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-
   const scrollRef = useRef();
+
+  const latitude = parseFloat(wisata.koordinat_lat);
+  const longitude = parseFloat(wisata.koordinat_lng);
+  const imageUrl = getImageUrlById(wisata.id_galeri);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,7 +72,6 @@ export default function DetailScreen({ route, navigation }) {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-
       const location = await Location.getCurrentPositionAsync({});
       setUserLocation({
         latitude: location.coords.latitude,
@@ -90,8 +79,6 @@ export default function DetailScreen({ route, navigation }) {
       });
     })();
   }, [id]);
-
-
 
   const pickImageFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -179,22 +166,25 @@ console.log('ID wisata yang digunakan:', id);
             <TouchableOpacity style={styles.tab}><Text style={styles.tabText}>Foto</Text></TouchableOpacity>
           </View>
 
-          <Text style={styles.title}>{wisata.name}</Text>
-          <Text style={styles.locationText}>{wisata.location} • ⭐ {wisata.rating}</Text>
+          <Text style={styles.title}>{wisata.nama_wisata}</Text>
+          <Text style={styles.locationText}>
+            {wisata.alamat} • ⭐ {wisata.rating_rata} ({wisata.jumlah_review} ulasan)
+          </Text>
 
+          {/* Lokasi */}
           <Text style={styles.sectionTitle}>Lokasi Wisata</Text>
           <View style={styles.mapContainer}>
             {userLocation ? (
               <MapView
                 style={styles.map}
                 initialRegion={{
-                  latitude: wisata.latitude,
-                  longitude: wisata.longitude,
+                  latitude,
+                  longitude,
                   latitudeDelta: 0.05,
                   longitudeDelta: 0.05,
                 }}
               >
-                <Marker coordinate={{ latitude: wisata.latitude, longitude: wisata.longitude }} pinColor="tomato" />
+                <Marker coordinate={{ latitude, longitude }} title={wisata.nama_wisata} description={wisata.alamat} pinColor="tomato" />
                 <Marker coordinate={userLocation} title="Lokasi Saya" pinColor="blue" />
               </MapView>
             ) : (
@@ -288,7 +278,6 @@ console.log('ID wisata yang digunakan:', id);
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   image: { width: '100%', height: 220 },
   tabContainer: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 10 },
   tab: { paddingVertical: 6, paddingHorizontal: 16, backgroundColor: '#e0e0e0', borderRadius: 20 },
