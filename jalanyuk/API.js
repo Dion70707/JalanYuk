@@ -81,15 +81,6 @@ export async function getWisataById(id) {
     throw new Error('Failed to fetch wisata by id');
   }
 }
-export async function postPemesanan(pemesananData) {
-  try {
-    const response = await api.post('/trspemesanan', pemesananData);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating pemesanan:', error);
-    throw error;
-  }
-}
 
 export async function addWisata(data) {
   const res = await fetch(`${BASE_URL}/wisata`, {

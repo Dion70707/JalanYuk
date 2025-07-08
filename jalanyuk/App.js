@@ -28,7 +28,6 @@ import DetailWisata from './master/Wisata/DetailWisata';
 import KotaIndex from './master/Kota/Index';
 import AddKota from './master/Kota/Add';
 import DetailKota from './master/Kota/Detail';
-import UlasanScreen from './screens/UlasanScreen';
 import PesanTiketScreen from './screens/PesanTiketScreen';
 
 import PemesananScreen from './screens/PesanTiketScreen';
@@ -202,16 +201,6 @@ export default function App() {
           <Stack.Screen
             name="DetailKota"
             component={DetailKota}
-            options={{ headerBackVisible: true }}
-          />
-          <Stack.Screen
-            name="UlasanScreen"
-            component={UlasanScreen}
-            options={{ headerBackVisible: true }}
-          />
-          <Stack.Screen
-            name="PesanTiketScreen"
-            component={PesanTiketScreen}
             options={{ headerBackVisible: true }}
           />
         </Stack.Navigator>
