@@ -9,7 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { postPemesanan } from '../API';
+import { postPemesanan, getAllWisata } from '../API';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PemesananScreen({ route, navigation }) {
@@ -17,8 +17,28 @@ export default function PemesananScreen({ route, navigation }) {
 
   const [jumlahTiket, setJumlahTiket] = useState('');
   const [totalHarga, setTotalHarga] = useState(0);
+  const [hargaTiket, setHargaTiket] = useState(0);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const fetchHargaTiket = async () => {
+      try {
+        const allWisata = await getAllWisata();
+        const matchedWisata = allWisata.find((w) => w.id === wisata.id);
+        if (matchedWisata) {
+          setHargaTiket(parseInt(matchedWisata.harga_tiket || matchedWisata.harga || 0));
+        } else {
+          setHargaTiket(0);
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data wisata:', err);
+        setHargaTiket(0);
+      }
+    };
+
+    fetchHargaTiket();
+  }, [wisata]);
 
   useEffect(() => {
     const getUserData = async () => {
@@ -39,19 +59,13 @@ export default function PemesananScreen({ route, navigation }) {
   }, []);
 
   useEffect(() => {
-    if (jumlahTiket && !isNaN(jumlahTiket) && wisata?.harga_tiket) {
-      const hargaTotal = parseInt(jumlahTiket) * parseInt(wisata.harga_tiket);
-      setTotalHarga(hargaTotal);
+    const jumlah = parseInt(jumlahTiket || 0);
+    if (!isNaN(jumlah)) {
+      setTotalHarga(hargaTiket * jumlah);
     } else {
       setTotalHarga(0);
     }
-  }, [jumlahTiket, wisata]);
-
-
-  console.log('Wisata:', wisata);
-  console.log('Wisata ID:', wisata?.id);
-  console.log('Wisata dari route.params:', wisata);
-
+  }, [jumlahTiket, hargaTiket]);
 
   const handlePemesanan = async () => {
     const wisataId = wisata?.id;
@@ -81,22 +95,22 @@ export default function PemesananScreen({ route, navigation }) {
     };
 
     try {
-  setLoading(true);
-  const result = await postPemesanan(payload);
-  console.log('Response Pemesanan:', result);
+      setLoading(true);
+      const result = await postPemesanan(payload);
+      console.log('Response Pemesanan:', result);
 
-  if (result.result === 200) {
-    Alert.alert('✅ Sukses', result.message || 'Pemesanan berhasil dibuat.');
-  } else {
-    Alert.alert('❌ Gagal', result.message || 'Terjadi kesalahan saat menyimpan.');
-  }
-} catch (error) {
-  console.error(error);
-  Alert.alert('Error', 'Tidak dapat menghubungi server.');
-} finally {
-  setLoading(false);
-}
-
+      if (result?.result === 200) {
+        Alert.alert('✅ Sukses', result.message || 'Pemesanan berhasil dibuat.');
+        navigation.goBack();
+      } else {
+        Alert.alert('❌ Gagal', result.message || 'Terjadi kesalahan saat menyimpan.');
+      }
+    } catch (error) {
+      console.error('Gagal melakukan pemesanan:', error);
+      Alert.alert('Error', 'Tidak dapat menghubungi server.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,10 +118,10 @@ export default function PemesananScreen({ route, navigation }) {
       <Text style={styles.title}>Pemesanan Tiket</Text>
 
       <Text style={styles.label}>Nama Wisata:</Text>
-      <Text style={styles.readonly}>{wisata.nama_wisata || wisata.name || '-'}</Text>
+      <Text style={styles.readonly}>{wisata?.nama_wisata || wisata?.name || '-'}</Text>
 
       <Text style={styles.label}>Harga per Tiket:</Text>
-      <Text style={styles.readonly}>Rp {wisata.harga_tiket || wisata.harga || 0}</Text>
+      <Text style={styles.readonly}>Rp {hargaTiket}</Text>
 
       <Text style={styles.label}>Jumlah Tiket:</Text>
       <TextInput

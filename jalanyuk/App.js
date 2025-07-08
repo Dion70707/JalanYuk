@@ -9,6 +9,7 @@ import RegisterScreen from './screens/Register';
 import HomeScreen from './screens/HomeScreen';
 import DetailScreen from './screens/DetailScreen';
 import AdminScreen from './screens/AdminScreen';
+import UlasanScreen from './screens/UlasanScreen';
 
 import RoleIndex from './master/Role/Index';
 import PenggunaIndex from './master/Pengguna/Index';
@@ -18,7 +19,7 @@ import Header from './components/Header';
 import Detail from './master/Pengguna/Detail';
 import Edit from './master/Pengguna/Edit';
 import ProfileScreen from './screens/ProfileScreen';
-
+import PemesananScreen from './screens/PesanTiketScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -75,6 +76,12 @@ export default function App() {
             component={LoginScreen}
             options={{ headerShown: false }}
           />
+
+          <Stack.Screen
+            name="PesanTiketScreen"
+            component={PemesananScreen}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
             name="Register"
             component={RegisterScreen}
@@ -88,6 +95,11 @@ export default function App() {
           <Stack.Screen
             name="DetailPengguna"
             component={Detail}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="UlasanScreen"
+            component={UlasanScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen

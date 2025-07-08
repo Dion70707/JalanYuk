@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.43.81:8080';
+const BASE_URL = 'http://172.20.10.3:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -75,7 +75,15 @@ export async function getWisataById(id) {
     throw new Error('Failed to fetch wisata by id');
   }
 }
-
+export async function postPemesanan(pemesananData) {
+  try {
+    const response = await api.post('/trspemesanan', pemesananData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating pemesanan:', error);
+    throw error;
+  }
+}
 
 export async function addWisata(data) {
   const res = await fetch(`${BASE_URL}/wisata`, {
@@ -295,59 +303,7 @@ export const togglePenggunaStatus = async (id, status) => {
 };
 
 // ====== WISATA API ======
-export const getAllWisata = async () => {
-  try {
-    const response = await api.get('/wisatas');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching wisata list:', error);
-    throw error;
-  }
-};
 
-export const getWisataById = async (id) => {
-  try {
-    const response = await api.get('/wisata', {
-      params: { id },
-    });
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching wisata with id ${id}:`, error);
-    throw error;
-  }
-};
-
-export const createWisata = async (wisata) => {
-  try {
-    const response = await api.post('/wisata', wisata);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating wisata:', error);
-    throw error;
-  }
-};
-
-export const updateWisata = async (wisata) => {
-  try {
-    const response = await api.put('/wisata', wisata);
-    return response.data;
-  } catch (error) {
-    console.error('Error updating wisata:', error);
-    throw error;
-  }
-};
-
-export const deleteWisata = async (id) => {
-  try {
-    const response = await api.delete('/wisata', {
-      params: { id },
-    });
-    return response.data;
-  } catch (error) {
-    console.error(`Error deleting wisata with id ${id}:`, error);
-    throw error;
-  }
-};
 
 export const getImageUrlById = (id_galeri) => {
   return `${BASE_URL}/galeri/image/${id_galeri}`;
@@ -369,11 +325,6 @@ export default {
   deletePengguna,
   togglePenggunaStatus,
 
-  getAllWisata,
-  getWisataById,
-  createWisata,
-  updateWisata,
-  deleteWisata,
 
   getImageUrlById,
 };
