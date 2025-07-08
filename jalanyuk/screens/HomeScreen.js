@@ -9,9 +9,25 @@ import {
   Platform,
   ActivityIndicator,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { getAllWisata, getImageUrlById } from '../API';
+import { getAllWisata } from '../API';
+
+const IMAGE_BASE_URL = 'http://192.168.43.81:8080';
+const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
+
+const ImageWithFallback = ({ uri, style }) => {
+  const [error, setError] = useState(false);
+  return (
+    <Image
+      source={{ uri: error ? FALLBACK_IMAGE : uri }}
+      style={style}
+      resizeMode="cover"
+      onError={() => setError(true)}
+    />
+  );
+};
 
 const TABS = [
   { key: 'Beranda', label: 'Beranda', icon: 'home' },
@@ -36,10 +52,7 @@ export default function HomeScreen({ navigation }) {
         data.map((item) => {
           const imageUrl = item.id_galeri
             ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
-            
             : FALLBACK_IMAGE;
-            console.log('ID Galeri:', item.id_galeri);
-
 
           return {
             id: item.id,
@@ -56,7 +69,7 @@ export default function HomeScreen({ navigation }) {
         })
       );
 
-      setWisataData(mappedData);
+      setWisataList(mappedData);
     } catch (error) {
       console.error('Gagal memuat data wisata:', error);
     } finally {
@@ -78,27 +91,6 @@ export default function HomeScreen({ navigation }) {
     else if (tabKey === 'Profile') navigation.navigate('Profile');
     else if (tabKey === 'MyOrder') navigation.navigate('MyOrder');
   };
-
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.imageUrl }} style={styles.image} />
-      <View style={styles.cardContent}>
-        <View style={styles.info}>
-          <Text style={styles.title}>{item.name}</Text>
-          <Text style={styles.subtitle}>
-            {item.location} • ⭐ {item.rating ?? 0} ({item.reviewCount ?? 0} reviews)
-          </Text>
-          <Text style={styles.category}>{item.kategori}</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Detail', { wisata: item })}
-          style={styles.detailButton}
-        >
-          <Text style={styles.detailButtonText}>Detail</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -130,8 +122,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.category}>{item.category}</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate('Detail', { id: item.id })}
-
+                    onPress={() => navigation.navigate('Detail', { wisata: item })}
                     style={styles.detailButton}
                   >
                     <Text style={styles.detailButtonText}>Detail</Text>

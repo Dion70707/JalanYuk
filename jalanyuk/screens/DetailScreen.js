@@ -1,26 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  Alert,
-  Image,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView,
+  Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Modal,
+  TextInput, Alert, Image,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
-import { getImageUrlById } from '../API';
+import * as ImagePicker from 'expo-image-picker';
 
-const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const IMAGE_BASE_URL = 'http://192.168.43.81:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
 
 const ImageWithFallback = ({ uri, style }) => {
@@ -36,39 +25,24 @@ const ImageWithFallback = ({ uri, style }) => {
 };
 
 export default function DetailScreen({ route, navigation }) {
-  const { wisata } = route.params;
+  const { wisata } = route.params ?? {};
   const [userLocation, setUserLocation] = useState(null);
   const [selectedRating, setSelectedRating] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [reviewText, setReviewText] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [user, setUser] = useState(null);
   const scrollRef = useRef();
 
-  const latitude = parseFloat(wisata.koordinat_lat);
-  const longitude = parseFloat(wisata.koordinat_lng);
-  const imageUrl = getImageUrlById(wisata.id_galeri);
+  // Ubah pembentukan URL gambar berdasarkan id_galeri
+  const imageUrl = wisata?.id_galeri
+    ? `${IMAGE_BASE_URL}/galeri/${wisata.id_galeri}/image`
+    : FALLBACK_IMAGE;
+
+  const latitude = parseFloat(wisata?.koordinat_lat || 0);
+  const longitude = parseFloat(wisata?.koordinat_lng || 0);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const wisataData = await getWisataById(id);
-        const galeriData = await getAllGaleri();
-
-        const imageUrl = wisataData.id_galeri
-          ? `${IMAGE_BASE_URL}/galeri/${wisataData.id_galeri}/image`
-          : FALLBACK_IMAGE;
-
-        setWisata({ ...wisataData, image: imageUrl });
-        setGaleri(galeriData.filter(item => item.wisata_id === id));
-
-        // Dummy user
-        setUser({ id: 2, foto: 'https://i.pravatar.cc/50' });
-      } catch (error) {
-        console.error('Gagal memuat data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
@@ -78,7 +52,10 @@ export default function DetailScreen({ route, navigation }) {
         longitude: location.coords.longitude,
       });
     })();
-  }, [id]);
+
+    // Dummy user, ganti dengan auth user yang sesuai bila diperlukan
+    setUser({ id: 2, foto: 'https://i.pravatar.cc/50' });
+  }, []);
 
   const pickImageFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -92,15 +69,10 @@ export default function DetailScreen({ route, navigation }) {
       quality: 0.7,
     });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
+    if (!result.canceled && result.assets?.length > 0) {
       setSelectedImage(result.assets[0].uri);
     }
   };
-
-  console.log('Diterima dari route.params:', route.params);
-console.log('ID wisata yang digunakan:', id);
-
-
 
   const submitReview = async () => {
     if (!user) {
@@ -115,14 +87,15 @@ console.log('ID wisata yang digunakan:', id);
 
     try {
       const reviewPayload = {
-        id_wisata: id,
+        id_wisata: wisata?.id,
         id_pengguna: user.id,
         rating: selectedRating,
         foto: selectedImage || '-',
-        komentar: reviewText.trim()
+        komentar: reviewText.trim(),
       };
 
-      await postReview(reviewPayload);
+      // TODO: Ganti dengan API postReview yang sesuai
+      console.log('Kirim review:', reviewPayload);
 
       Alert.alert('Sukses', 'Ulasan berhasil dikirim.');
       setModalVisible(false);
@@ -135,19 +108,10 @@ console.log('ID wisata yang digunakan:', id);
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text>Memuat detail wisata...</Text>
-      </View>
-    );
-  }
-
   if (!wisata) {
     return (
       <View style={styles.centered}>
-        <Text>Data wisata tidak ditemukan.</Text>
+        <Text>Data wisata tidak tersedia.</Text>
       </View>
     );
   }
@@ -156,14 +120,18 @@ console.log('ID wisata yang digunakan:', id);
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView ref={scrollRef} style={{ backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
-          <ImageWithFallback uri={wisata.image} style={styles.image} />
+          <ImageWithFallback uri={imageUrl} style={styles.image} />
 
           <View style={styles.tabContainer}>
-            <TouchableOpacity style={styles.activeTab}><Text style={styles.tabText}>Ringkasan</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.activeTab}>
+              <Text style={styles.tabText}>Ringkasan</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('UlasanScreen')} style={styles.tab}>
               <Text style={styles.tabText}>Ulasan</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.tab}><Text style={styles.tabText}>Foto</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.tab}>
+              <Text style={styles.tabText}>Foto</Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.title}>{wisata.nama_wisata}</Text>
@@ -171,7 +139,6 @@ console.log('ID wisata yang digunakan:', id);
             {wisata.alamat} • ⭐ {wisata.rating_rata} ({wisata.jumlah_review} ulasan)
           </Text>
 
-          {/* Lokasi */}
           <Text style={styles.sectionTitle}>Lokasi Wisata</Text>
           <View style={styles.mapContainer}>
             {userLocation ? (
@@ -195,10 +162,20 @@ console.log('ID wisata yang digunakan:', id);
             )}
           </View>
 
-          <View style={styles.box}><Text style={styles.statusOpen}>Buka</Text></View>
-          <View style={styles.box}><FontAwesome name="star" size={18} color="#f4c542" /><Text style={styles.infoText}>{wisata.rating} ★</Text></View>
-          <View style={styles.box}><Ionicons name="call" size={18} color="#007bff" /><Text style={styles.infoText}>{wisata.phone}</Text></View>
-          <View style={styles.box}><Text style={styles.description}>{wisata.description}</Text></View>
+          <View style={styles.box}>
+            <Text style={styles.statusOpen}>Buka</Text>
+          </View>
+          <View style={styles.box}>
+            <FontAwesome name="star" size={18} color="#f4c542" />
+            <Text style={styles.infoText}>{wisata.rating} ★</Text>
+          </View>
+          <View style={styles.box}>
+            <Ionicons name="call" size={18} color="#007bff" />
+            <Text style={styles.infoText}>{wisata.phone}</Text>
+          </View>
+          <View style={styles.box}>
+            <Text style={styles.description}>{wisata.description}</Text>
+          </View>
 
           <Text style={styles.sectionTitle}>Beri Rating</Text>
           <View style={styles.reviewInputContainer}>
@@ -216,27 +193,14 @@ console.log('ID wisata yang digunakan:', id);
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.bookButton,
-              !wisata?.id && { backgroundColor: '#999' } // disable button jika wisata belum siap
-            ]}
-            onPress={() => {
-              if (!wisata || !wisata.id) {
-                Alert.alert('Tunggu', 'Data wisata belum siap.');
-                return;
-              }
-
-              console.log('Mengirim wisata ke PemesananScreen:', wisata);
-              navigation.navigate('PesanTiketScreen', { wisata });
-            }}
-
+            style={[styles.bookButton, !wisata?.id && { backgroundColor: '#999' }]}
+            onPress={() => navigation.navigate('PesanTiketScreen', { wisata })}
             disabled={!wisata?.id}
           >
             <Text style={styles.bookButtonText}>Pesan Tiket</Text>
           </TouchableOpacity>
 
-
-
+          {/* Modal untuk Ulasan */}
           <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContainer}>
@@ -348,4 +312,5 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginTop: 12,
   },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

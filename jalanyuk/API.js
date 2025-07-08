@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.165.125:8080';
+const BASE_URL = 'http://192.168.43.81:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -326,6 +326,11 @@ export const deleteKota = async (id) => {
   }
 };
 
+export const getImageUrlById = (id) => 
+  `http://192.168.43.81:8080/galeri/${id}/image`;
+
+
+
 export default {
   getAllRoles,
   getRoleById,
@@ -338,23 +343,23 @@ export default {
   updatePengguna,
   deletePengguna,
 
-  
-getAllGaleri,
-getGaleriById,
-addGaleri,
-updateGaleri,
-deleteGaleri,
+  getAllGaleri,
+  getGaleriById,
+  addGaleri,
+  updateGaleri,
+  deleteGaleri,
 
-getAllWisata,
+  getAllWisata,
   getWisataById,
   addWisata,
   updateWisata,
   deleteWisata,
 
-getAllKota,
-getKotaById,
-addKota,
-updateKota,
-deleteKota,
+  getAllKota,
+  getKotaById,
+  addKota,
+  updateKota,
+  deleteKota,
 
+  getImageUrlById
 };
