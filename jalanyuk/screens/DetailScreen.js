@@ -12,7 +12,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getImageUrlById, getAllWisata, getAllReviews, getAllPenggunas } from '../API';
 
-const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const IMAGE_BASE_URL = 'http://192.168.43.81:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
 
 const ImageWithFallback = ({ uri, style }) => {
@@ -60,6 +60,8 @@ export default function DetailScreen({ route, navigation }) {
       }
     })();
 
+    // Dummy user, ganti dengan auth user yang sesuai bila diperlukan
+    setUser({ id: 2, foto: 'https://i.pravatar.cc/50' });
     const loadUserId = async () => {
       try {
         const storedId = await AsyncStorage.getItem('userId');

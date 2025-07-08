@@ -1,15 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Platform, StatusBar 
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ActivityIndicator,
+  Platform,
+  StatusBar,
+  TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import Icon from 'react-native-vector-icons/FontAwesome';
 import { getAllRoles, getPenggunaById } from '../API';
 
-const ProfileScreen = () => {
+const TABS = [
+  { key: 'Beranda', label: 'Beranda', icon: 'home' },
+  { key: 'Favorit', label: 'Favorit', icon: 'heart' },
+  { key: 'MyOrder', label: 'My Order', icon: 'ticket' },
+  { key: 'Profile', label: 'Profile', icon: 'user' },
+];
+
+const ProfileScreen = ({ navigation }) => {
   const [pengguna, setPengguna] = useState(null);
   const [roleName, setRoleName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState('Profile');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,11 +48,20 @@ const ProfileScreen = () => {
     fetchData();
   }, []);
 
+  const handleTabPress = (tabKey) => {
+    setSelectedTab(tabKey);
+    if (tabKey === 'Beranda') navigation.navigate('Beranda');
+    else if (tabKey === 'Favorit') navigation.navigate('Favorit');
+    else if (tabKey === 'MyOrder') navigation.navigate('MyOrder');
+    // Profile sudah di sini
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <CustomHeader />
-        <ActivityIndicator size="large" color="#007bff" style={{marginTop: 30}} />
+        <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 30 }} />
+        <TabBar selectedTab={selectedTab} onPress={handleTabPress} />
       </SafeAreaView>
     );
   }
@@ -46,6 +71,7 @@ const ProfileScreen = () => {
       <SafeAreaView style={styles.container}>
         <CustomHeader />
         <Text style={{ textAlign: 'center', marginTop: 30 }}>Data pengguna tidak ditemukan.</Text>
+        <TabBar selectedTab={selectedTab} onPress={handleTabPress} />
       </SafeAreaView>
     );
   }
@@ -54,23 +80,29 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.container}>
       <CustomHeader />
       <View style={styles.card}>
-        <Ionicons name="person-circle" size={120} color="#007bff" style={{marginBottom: 20}} />
+        <Ionicons name="person-circle" size={120} color="#007bff" style={{ marginBottom: 20 }} />
 
         <InfoRow label="Nama Lengkap" value={pengguna.nama_lengkap} />
         <InfoRow label="Email" value={pengguna.email} />
-        <InfoRow  value={roleName} />
-        <InfoRow 
-          label="Status" 
+        <InfoRow label="Role" value={roleName} />
+        <InfoRow
+          label="Status"
           value={
-            <View style={[
-              styles.statusBadge, 
-              pengguna.status === 'Aktif' ? styles.active : styles.inactive
-            ]}>
-              <Text style={styles.statusText}>{pengguna.status}</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                pengguna.status === 'Aktif' ? styles.active : styles.inactive,
+              ]}
+            >
+              <Text style={styles.statusText}>
+                {pengguna.status}
+              </Text>
             </View>
-          } 
+          }
         />
       </View>
+
+      <TabBar selectedTab={selectedTab} onPress={handleTabPress} />
     </SafeAreaView>
   );
 };
@@ -92,6 +124,22 @@ const CustomHeader = () => (
   </View>
 );
 
+const TabBar = ({ selectedTab, onPress }) => (
+  <View style={styles.tabBar}>
+    {TABS.map((tab) => (
+      <TouchableOpacity
+        key={tab.key}
+        style={styles.tabItem}
+        onPress={() => onPress(tab.key)}
+      >
+        <Icon name={tab.icon} size={20} color="#fff" style={styles.tabIcon} />
+        <Text style={styles.tabLabel}>{tab.label}</Text>
+        {selectedTab === tab.key && <View style={styles.tabIndicator} />}
+      </TouchableOpacity>
+    ))}
+  </View>
+);
+
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
@@ -100,6 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f4f8',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   header: {
     width: '100%',
@@ -164,12 +213,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4CAF50',
   },
-  inactive: {
-    backgroundColor: '#f9e6e6',
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#007bff',
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    width: '100%',
   },
-  statusTextInactive: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: '#F44336',
+  tabItem: { alignItems: 'center', flex: 1 },
+  tabIcon: { marginBottom: 2 },
+  tabLabel: { color: '#fff', fontSize: 12, marginTop: 2 },
+  tabIndicator: {
+    height: 4,
+    backgroundColor: '#fff',
+    borderRadius: 2,
+    marginTop: 6,
+    width: '50%',
+    alignSelf: 'center',
   },
 });

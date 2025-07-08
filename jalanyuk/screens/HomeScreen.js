@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { getAllWisata } from '../API';
 
-const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const IMAGE_BASE_URL = 'http://192.168.43.81:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
 
 const ImageWithFallback = ({ uri, style }) => {
@@ -122,9 +122,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.category}>{item.category}</Text>
                   </View>
                   <TouchableOpacity
-                    // HomeScreen.js
                     onPress={() => navigation.navigate('Detail', { wisata: item })}
-
                     style={styles.detailButton}
                   >
                     <Text style={styles.detailButtonText}>Detail</Text>
