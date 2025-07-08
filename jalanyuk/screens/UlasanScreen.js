@@ -15,7 +15,7 @@ export default function UlasanScreen({ route, navigation }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { id } = route.params || {}; // opsional: untuk filter review berdasarkan id_wisata
+  const { id } = route.params || {}; 
 
   useEffect(() => {
     const fetchReviews = async () => {

@@ -8,6 +8,9 @@ import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getImageUrlById, getAllWisata } from '../API';
 
 const IMAGE_BASE_URL = 'http://192.168.43.81:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
@@ -31,16 +34,13 @@ export default function DetailScreen({ route, navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
-  const [user, setUser] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [detailWisata, setDetailWisata] = useState(null);
   const scrollRef = useRef();
 
-  // Ubah pembentukan URL gambar berdasarkan id_galeri
-  const imageUrl = wisata?.id_galeri
-    ? `${IMAGE_BASE_URL}/galeri/${wisata.id_galeri}/image`
-    : FALLBACK_IMAGE;
-
-  const latitude = parseFloat(wisata?.koordinat_lat || 0);
-  const longitude = parseFloat(wisata?.koordinat_lng || 0);
+  const latitude = parseFloat(detailWisata?.koordinat_lat || 0);
+  const longitude = parseFloat(detailWisata?.koordinat_lng || 0);
+  const imageUrl = getImageUrlById(detailWisata?.id_galeri);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +55,31 @@ export default function DetailScreen({ route, navigation }) {
 
     // Dummy user, ganti dengan auth user yang sesuai bila diperlukan
     setUser({ id: 2, foto: 'https://i.pravatar.cc/50' });
+    const loadUserId = async () => {
+      try {
+        const storedId = await AsyncStorage.getItem('userId');
+        if (storedId) {
+          setUserId(parseInt(storedId, 10));
+        } else {
+          console.warn('User ID belum login atau tidak ditemukan');
+        }
+      } catch (error) {
+        console.error('Gagal ambil userId:', error);
+      }
+    };
+
+    const fetchWisata = async () => {
+      try {
+        const all = await getAllWisata();
+        const found = all.find(item => item.id === wisata.id);
+        setDetailWisata(found || wisata);
+      } catch (err) {
+        console.error('Gagal mengambil data wisata:', err);
+      }
+    };
+
+    loadUserId();
+    fetchWisata();
   }, []);
 
   const pickImageFromGallery = async () => {
@@ -75,13 +100,13 @@ export default function DetailScreen({ route, navigation }) {
   };
 
   const submitReview = async () => {
-    if (!user) {
-      Alert.alert('Login Diperlukan', 'Silakan login untuk memberikan ulasan.');
+    if (!userId) {
+      Alert.alert('Login Diperlukan', 'Silakan login terlebih dahulu.');
       return;
     }
 
-    if (!reviewText.trim() || selectedRating === 0) {
-      Alert.alert('Lengkapi Ulasan', 'Silakan masukkan komentar dan rating.');
+    if (!reviewText.trim() || selectedRating === 0 || !selectedImage) {
+      Alert.alert('Lengkapi Ulasan', 'Komentar, rating, dan foto wajib diisi.');
       return;
     }
 
@@ -96,6 +121,25 @@ export default function DetailScreen({ route, navigation }) {
 
       // TODO: Ganti dengan API postReview yang sesuai
       console.log('Kirim review:', reviewPayload);
+      const formData = new FormData();
+      const fileName = selectedImage.split('/').pop();
+      const fileType = fileName.split('.').pop();
+      const mimeType = `image/${fileType}`;
+
+      formData.append('file', {
+        uri: selectedImage,
+        name: fileName,
+        type: mimeType,
+      });
+      formData.append('id', 0);
+      formData.append('id_wisata', detailWisata?.id);
+      formData.append('id_pengguna', userId);
+      formData.append('komentar', reviewText.trim());
+      formData.append('rating', selectedRating);
+
+      await axios.post(`${IMAGE_BASE_URL}/saveRiview`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       Alert.alert('Sukses', 'Ulasan berhasil dikirim.');
       setModalVisible(false);
@@ -103,15 +147,16 @@ export default function DetailScreen({ route, navigation }) {
       setSelectedImage(null);
       setSelectedRating(0);
     } catch (error) {
-      console.error(error);
-      Alert.alert('Gagal', 'Tidak dapat mengirim ulasan.');
+      console.error('Gagal kirim ulasan:', error);
+      Alert.alert('Gagal', 'Gagal mengirim ulasan. Coba lagi nanti.');
     }
   };
 
-  if (!wisata) {
+  if (!detailWisata) {
     return (
       <View style={styles.centered}>
-        <Text>Data wisata tidak tersedia.</Text>
+        <ActivityIndicator />
+        <Text>Memuat data wisata...</Text>
       </View>
     );
   }
@@ -134,9 +179,9 @@ export default function DetailScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.title}>{wisata.nama_wisata}</Text>
+          <Text style={styles.title}>{detailWisata.nama_wisata}</Text>
           <Text style={styles.locationText}>
-            {wisata.alamat} • ⭐ {wisata.rating_rata} ({wisata.jumlah_review} ulasan)
+            {detailWisata.alamat} • ⭐ {detailWisata.rating_rata} ({detailWisata.jumlah_review} ulasan)
           </Text>
 
           <Text style={styles.sectionTitle}>Lokasi Wisata</Text>
@@ -151,7 +196,7 @@ export default function DetailScreen({ route, navigation }) {
                   longitudeDelta: 0.05,
                 }}
               >
-                <Marker coordinate={{ latitude, longitude }} title={wisata.nama_wisata} description={wisata.alamat} pinColor="tomato" />
+                <Marker coordinate={{ latitude, longitude }} title={detailWisata.nama_wisata} />
                 <Marker coordinate={userLocation} title="Lokasi Saya" pinColor="blue" />
               </MapView>
             ) : (
@@ -162,24 +207,14 @@ export default function DetailScreen({ route, navigation }) {
             )}
           </View>
 
-          <View style={styles.box}>
-            <Text style={styles.statusOpen}>Buka</Text>
-          </View>
-          <View style={styles.box}>
-            <FontAwesome name="star" size={18} color="#f4c542" />
-            <Text style={styles.infoText}>{wisata.rating} ★</Text>
-          </View>
-          <View style={styles.box}>
-            <Ionicons name="call" size={18} color="#007bff" />
-            <Text style={styles.infoText}>{wisata.phone}</Text>
-          </View>
-          <View style={styles.box}>
-            <Text style={styles.description}>{wisata.description}</Text>
-          </View>
+          <View style={styles.box}><Text style={styles.statusOpen}>Buka</Text></View>
+          <View style={styles.box}><FontAwesome name="star" size={18} color="#f4c542" /><Text style={styles.infoText}>{detailWisata.rating} ★</Text></View>
+          <View style={styles.box}><Ionicons name="call" size={18} color="#007bff" /><Text style={styles.infoText}>{detailWisata.phone}</Text></View>
+          <View style={styles.box}><Text style={styles.description}>{detailWisata.description}</Text></View>
 
           <Text style={styles.sectionTitle}>Beri Rating</Text>
           <View style={styles.reviewInputContainer}>
-            <Image source={{ uri: user?.foto || 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
+            <Image source={{ uri: 'https://i.pravatar.cc/50' }} style={styles.profileImage} />
             <View style={styles.reviewRight}>
               <Text style={styles.instructionText}>Klik bintang untuk memberi ulasan:</Text>
               <View style={styles.starContainer}>
@@ -193,14 +228,14 @@ export default function DetailScreen({ route, navigation }) {
           </View>
 
           <TouchableOpacity
-            style={[styles.bookButton, !wisata?.id && { backgroundColor: '#999' }]}
-            onPress={() => navigation.navigate('PesanTiketScreen', { wisata })}
-            disabled={!wisata?.id}
+            style={[styles.bookButton, !detailWisata?.id && { backgroundColor: '#999' }]}
+            onPress={() => navigation.navigate('PesanTiketScreen', { wisata: detailWisata })}
+            disabled={!detailWisata?.id}
           >
             <Text style={styles.bookButtonText}>Pesan Tiket</Text>
           </TouchableOpacity>
 
-          {/* Modal untuk Ulasan */}
+          {/* Modal Review */}
           <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContainer}>
@@ -208,9 +243,7 @@ export default function DetailScreen({ route, navigation }) {
                 <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
 
                 <TouchableOpacity onPress={pickImageFromGallery} style={{ marginBottom: 12 }}>
-                  <Text style={{ color: '#007bff' }}>
-                    {selectedImage ? 'Ganti Foto dari Galeri' : 'Pilih Foto dari Galeri'}
-                  </Text>
+                  <Text style={{ color: '#007bff' }}>{selectedImage ? 'Ganti Foto dari Galeri' : 'Pilih Foto dari Galeri'}</Text>
                 </TouchableOpacity>
 
                 {selectedImage && <Image source={{ uri: selectedImage }} style={styles.selectedImage} />}

@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.43.81:8080';
+const BASE_URL = 'http://172.20.10.3:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -79,6 +79,15 @@ export async function getWisataById(id) {
   } catch (error) {
     console.error('API getWisataById error:', error.response?.status, error.response?.data);
     throw new Error('Failed to fetch wisata by id');
+  }
+}
+export async function postPemesanan(pemesananData) {
+  try {
+    const response = await api.post('/trspemesanan', pemesananData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating pemesanan:', error);
+    throw error;
   }
 }
 
