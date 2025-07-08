@@ -10,16 +10,6 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-// trs 
-export async function postPemesanan(pemesananData) {
-  try {
-    const response = await api.post('/trspemesanan', pemesananData);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating pemesanan:', error);
-    throw error;
-  }
-}
 
 export async function getAllReviews() {
   try {
@@ -73,9 +63,13 @@ export async function getAllWisata() {
 export async function getWisataById(id) {
   try {
     const response = await axios.get(`${BASE_URL}/wisatas`, {
-      params: { id: id }, // pastikan params ini sesuai API
+      params: { id: id },
     });
-    return response.data;
+
+    // Ambil wisata pertama dari array jika response-nya berupa array
+    const data = Array.isArray(response.data) ? response.data[0] : response.data;
+
+    return data;
   } catch (error) {
     console.error('API getWisataById error:', error.response?.status, error.response?.data);
     throw new Error('Failed to fetch wisata by id');
@@ -161,16 +155,17 @@ export async function deleteGaleri(id) {
   return res.json();
 }
 // ====== ROLE API ======
-export const getAllRoles = async () => {
+export const getAllRoles = async (status) => {
   try {
-    const response = await api.get('/roles');
+    const response = await api.get('/roles', {
+      params: { status }, // ✅ pastikan status dikirim sebagai query param
+    });
     return response.data;
   } catch (error) {
     console.error('Error fetching roles:', error);
     throw error;
   }
 };
-
 
 export const getRoleById = async (id) => {
   try {
@@ -196,7 +191,9 @@ export const createRole = async (role) => {
 
 export const updateRole = async (role) => {
   try {
-    const response = await api.put('/role', role);
+    const response = await api.put('/role', role, {
+      params: { id: role.id_role }, // ✅ tambahkan id sebagai query param
+    });
     return response.data;
   } catch (error) {
     console.error('Error updating role:', error);
@@ -216,14 +213,26 @@ export const deleteRole = async (id) => {
   }
 };
 
-
-
-export const getAllPenggunas = async () => {
+export const toggleRoleStatus = async (id, status) => {
   try {
-    const response = await api.get('/penggunas');
+    const response = await api.put('/role/status', null, {
+      params: { id, status },
+    });
     return response.data;
   } catch (error) {
-    console.error('Error fetching penggunas:', error);
+    console.error('Error toggling role status:', error);
+    throw error;
+  }
+};
+
+export const getAllPenggunas = async (status) => {
+  try {
+    const response = await api.get('/penggunas', {
+      params: { status }, // ✅ pastikan status dikirim sebagai query param
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching roles:', error);
     throw error;
   }
 };
@@ -271,64 +280,25 @@ export const deletePengguna = async (id) => {
     throw error;
   }
 };
-// kota
-export const getAllKota = async () => {
-  try {
-    const response = await api.get('/kotas');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching kota:', error);
-    throw error;
-  }
-};
 
-export const getKotaById = async (id) => {
+export const togglePenggunaStatus = async (id, status) => {
   try {
-    const response = await api.get('/kota', {
-      params: { id },
+    const response = await api.put('/pengguna/status', null, {
+      params: { id, status },
     });
     return response.data;
   } catch (error) {
-    console.error(`Error fetching kota with id ${id}:`, error);
+    console.error('Error toggling role status:', error);
     throw error;
   }
 };
 
-export const addKota = async (kota) => {
-  try {
-    const response = await api.post('/kota', kota);
-    return response.data;
-  } catch (error) {
-    console.error('Error adding kota:', error);
-    throw error;
-  }
+// ====== WISATA API ======
+
+
+export const getImageUrlById = (id_galeri) => {
+  return `${BASE_URL}/galeri/image/${id_galeri}`;
 };
-
-export const updateKota = async (id, kota) => {
-  try {
-    const response = await api.put('/kota', { id, ...kota });
-    return response.data;
-  } catch (error) {
-    console.error('Error updating kota:', error);
-    throw error;
-  }
-};
-
-export const deleteKota = async (id) => {
-  try {
-    const response = await api.delete('/kota', {
-      params: { id },
-    });
-    return response.data;
-  } catch (error) {
-    console.error(`Error deleting kota with id ${id}:`, error);
-    throw error;
-  }
-};
-
-export const getImageUrlById = (id) => 
-  `http://192.168.43.81:8080/galeri/${id}/image`;
-
 
 
 export default {
@@ -337,29 +307,16 @@ export default {
   createRole,
   updateRole,
   deleteRole,
+  toggleRoleStatus,
+
   getAllPenggunas,
   getPenggunaById,
   createPengguna,
   updatePengguna,
   deletePengguna,
+  togglePenggunaStatus,
 
-  getAllGaleri,
-  getGaleriById,
-  addGaleri,
-  updateGaleri,
-  deleteGaleri,
 
-  getAllWisata,
-  getWisataById,
-  addWisata,
-  updateWisata,
-  deleteWisata,
-
-  getAllKota,
-  getKotaById,
-  addKota,
-  updateKota,
-  deleteKota,
-
-  getImageUrlById
+  getImageUrlById,
 };
+

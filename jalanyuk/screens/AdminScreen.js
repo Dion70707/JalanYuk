@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,12 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  Platform,
   Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Tab from '../components/Tab';
+import Tab from '../components/Tab'; // ✅ Import komponen Tab
 
 const MasterMenu = [
   { title: 'Wisata', icon: 'image' },
@@ -24,34 +25,6 @@ const AdminScreen = () => {
   const navigation = useNavigation();
   const [selectedTab, setSelectedTab] = useState('Dashboard');
 
-  useEffect(() => {
-    // Debug: lihat apakah screen WisataIndex tersedia di navigator
-    const state = navigation.getState();
-    console.log("Available routes:", state?.routeNames);
-  }, []);
-
-  const handleNavigate = (title) => {
-    switch (title) {
-      case 'Wisata':
-        navigation.navigate('WisataIndex');
-        break;
-      case 'Role':
-        navigation.navigate('RoleIndex');
-        break;
-      case 'Galeri':
-        navigation.navigate('GaleriIndex');
-        break;
-      case 'Kota':
-        navigation.navigate('KotaIndex');
-        break;
-      case 'Pengguna':
-        navigation.navigate('PenggunaIndex');
-        break;
-      default:
-        break;
-    }
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -60,7 +33,13 @@ const AdminScreen = () => {
             <TouchableOpacity
               key={index}
               style={styles.card}
-              onPress={() => handleNavigate(item.title)}
+              onPress={() => {
+                if (item.title === 'Role') {
+                  navigation.navigate('RoleIndex');
+                }else if (item.title === 'Pengguna') {
+                  navigation.navigate('PenggunaIndex');
+                }
+              }}
             >
               <Ionicons name={item.icon} size={36} color="#007bff" />
               <Text style={styles.cardText}>{item.title}</Text>
@@ -69,6 +48,7 @@ const AdminScreen = () => {
         </View>
       </ScrollView>
 
+      {/* ✅ Gunakan komponen Tab */}
       <Tab selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
     </SafeAreaView>
   );
