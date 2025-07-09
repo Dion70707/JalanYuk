@@ -77,7 +77,7 @@ const AddKota = () => {
                   style={styles.cancelButton}
                   onPress={() => navigation.goBack()}
                 >
-                  <Text style={styles.cancelText}>Back</Text>
+                  <Text style={styles.cancelText}>Back</Text>  
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
