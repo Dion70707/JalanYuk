@@ -45,6 +45,9 @@ const LoginScreen = ({ navigation }) => {
       if (user) {
         await AsyncStorage.setItem('userId', user.id.toString());
         await AsyncStorage.setItem('userNamaLengkap', user.nama_lengkap); 
+        await AsyncStorage.setItem('userStatus', user.status);
+
+        console.log('DATA LOGIN DARI API:', user); 
 
         
 

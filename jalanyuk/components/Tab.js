@@ -17,7 +17,7 @@ const Tab = ({ selectedTab, setSelectedTab }) => {
     if (tabKey === 'Profile') {
       navigation.navigate('Profile');
     } else if (tabKey === 'Dashboard') {
-      navigation.navigate('Admin'); // ✅ arahkan ke Admin screen
+      navigation.navigate('Admin'); 
     }
   };
 

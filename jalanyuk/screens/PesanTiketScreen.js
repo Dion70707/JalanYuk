@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
+import { Feather } from '@expo/vector-icons';
 import axios from 'axios';
 
 export default function PemesananScreen({ route }) {
@@ -25,8 +26,100 @@ export default function PemesananScreen({ route }) {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [showQR, setShowQR] = useState(false);
+  const strukRef = useRef();
   const [transaksiData, setTransaksiData] = useState(null);
   const qrRef = useRef();
+
+  useEffect(() => {
+    const loadTransaksiFromId = async () => {
+      if (wisata && wisata.id_pemesanan) {
+        try {
+          setLoading(true);
+          const res = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${wisata.id_pemesanan}`);
+          const transaksi = res.data;
+
+          // Ambil data wisata
+          const allWisata = await getAllWisata();
+          const matchedWisata = allWisata.find((w) => w.id === transaksi.id_wisata);
+
+          const harga = matchedWisata ? parseInt(matchedWisata.harga_tiket || matchedWisata.harga || 0) : 0;
+
+          setTransaksiData({
+            ...transaksi,
+            nama_pengguna: user?.nama_lengkap || '',
+            nama_wisata: matchedWisata?.nama_wisata || '-',
+            harga_tiket: harga,
+
+          });
+
+          setShowQR(true); // langsung tampilkan QR jika datang dari klik list
+        } catch (err) {
+          console.error('Gagal ambil data transaksi:', err);
+          Alert.alert('Error', 'Gagal mengambil data transaksi.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadTransaksiFromId();
+  }, [wisata]);
+
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+
+        // Ambil user
+        const userId = await AsyncStorage.getItem('userId');
+        const nama = await AsyncStorage.getItem('userNamaLengkap');
+        setUser({ id: parseInt(userId), nama_lengkap: nama });
+
+        let transaksi = null;
+        let wisataData = null;
+
+        const allWisata = await getAllWisata();
+
+        // Kasus 1: jika hanya id_pemesanan yang dikirim dari route.params
+        if (wisata.id_pemesanan) {
+          const res = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${wisata.id_pemesanan}`);
+          transaksi = res.data;
+
+          wisataData = allWisata.find((w) => w.id === transaksi.id_wisata);
+          const harga = parseInt(wisataData?.harga_tiket || wisataData?.harga || 0);
+
+          setHargaTiket(harga);
+          setTotalHarga(transaksi.total_harga || 0);
+          setJumlahTiket(transaksi.jumlah_tiket.toString());
+
+          setTransaksiData({
+            ...transaksi,
+            nama_pengguna: nama,
+            nama_wisata: wisataData?.nama_wisata || '-',
+            harga_tiket: harga,
+          });
+
+          setShowQR(true);
+        }
+        // Kasus 2: data wisata lengkap dikirim dari screen sebelumnya
+        else if (wisata.id) {
+          wisataData = allWisata.find((w) => w.id === wisata.id);
+          const harga = parseInt(wisataData?.harga_tiket || wisataData?.harga || 0);
+          setHargaTiket(harga);
+        }
+      } catch (err) {
+        console.error('❌ Gagal mengambil data wisata / transaksi:', err);
+        Alert.alert('Error', 'Gagal memuat data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+
 
   useEffect(() => {
     const fetchHargaTiket = async () => {
@@ -104,7 +197,7 @@ export default function PemesananScreen({ route }) {
         Alert.alert('✅ Sukses', result.message || 'Pemesanan berhasil dibuat.');
 
         const transaksi = {
-          id: result.id || payload.id, 
+          id: result.id || payload.id,
           status: 'Pending',
           nama_pengguna: user.nama_lengkap,
           nama_wisata: wisata?.nama_wisata || wisata?.name || '-',
@@ -135,59 +228,82 @@ export default function PemesananScreen({ route }) {
     }
   };
 
+  const simpanStrukKeGaleri = async () => {
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Izin Ditolak', 'Aplikasi tidak memiliki izin menyimpan ke galeri.');
+        return;
+      }
+
+      const uri = await captureRef(strukRef, {
+        format: 'png',
+        quality: 1,
+      });
+
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      await MediaLibrary.createAlbumAsync('Bukti-Pemesanan', asset, false);
+
+      Alert.alert('✅ Berhasil', 'Bukti pemesanan berhasil disimpan ke galeri!');
+    } catch (error) {
+      console.error('❌ Gagal simpan bukti pemesanan:', error);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat menyimpan bukti pemesanan.');
+    }
+  };
+
 
   const handleSelesaikan = async () => {
-  console.log('✔️ Tombol Selesaikan ditekan');
+    console.log('✔️ Tombol Selesaikan ditekan');
 
-  if (!transaksiData || !transaksiData.id || transaksiData.id === 0) {
-    console.log('❌ Data transaksi tidak valid:', transaksiData);
-    Alert.alert('Error', 'Data transaksi tidak valid. Tidak dapat menyelesaikan pemesanan.');
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    // Ambil data transaksi dari backend berdasarkan ID
-    const fullTransaksi = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${transaksiData.id}`);
-    const existingData = fullTransaksi?.data;
-
-    if (!existingData || !existingData.id) {
-      Alert.alert('Error', 'Transaksi tidak ditemukan di server.');
+    if (!transaksiData || !transaksiData.id || transaksiData.id === 0) {
+      console.log('❌ Data transaksi tidak valid:', transaksiData);
+      Alert.alert('Error', 'Data transaksi tidak valid. Tidak dapat menyelesaikan pemesanan.');
       return;
     }
 
-    // Update hanya status menjadi "Selesai"
-    const updatePayload = {
-      ...existingData,
-      status: "Selesai",
-    };
+    try {
+      setLoading(true);
 
-    console.log('🚀 Mengirim update PUT:', updatePayload);
+      // Ambil data transaksi dari backend berdasarkan ID
+      const fullTransaksi = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${transaksiData.id}`);
+      const existingData = fullTransaksi?.data;
 
-    const response = await axios.put('http://172.20.10.3:8080/trspemesanan', updatePayload);
+      if (!existingData || !existingData.id) {
+        Alert.alert('Error', 'Transaksi tidak ditemukan di server.');
+        return;
+      }
 
-    console.log('✅ Respon dari backend:', response.data);
+      // Update hanya status menjadi "Selesai"
+      const updatePayload = {
+        ...existingData,
+        status: "Selesai",
+      };
 
-    if (response?.data?.result === 200) {
-      Alert.alert('✅ Berhasil', 'Pemesanan telah diselesaikan!');
-      setTransaksiData(prev => ({ ...prev, status: 'Selesai' }));
-    } else {
-      Alert.alert('❌ Gagal', response?.data?.message || 'Gagal menyelesaikan pemesanan.');
+      console.log('🚀 Mengirim update PUT:', updatePayload);
+
+      const response = await axios.put('http://172.20.10.3:8080/trspemesanan', updatePayload);
+
+      console.log('✅ Respon dari backend:', response.data);
+
+      if (response?.data?.result === 200) {
+        Alert.alert('✅ Berhasil', 'Pemesanan telah diselesaikan!');
+        setTransaksiData(prev => ({ ...prev, status: 'Selesai' }));
+      } else {
+        Alert.alert('❌ Gagal', response?.data?.message || 'Gagal menyelesaikan pemesanan.');
+      }
+
+    } catch (err) {
+      console.error('Terjadi error saat menyelesaikan pemesanan:', err);
+      if (err.response) {
+        console.error('Respon error dari backend:', err.response.data);
+        Alert.alert('❌ Error', err.response.data?.message || 'Terjadi kesalahan pada server.');
+      } else {
+        Alert.alert('❌ Error', 'Tidak dapat menghubungi server.');
+      }
+    } finally {
+      setLoading(false);
     }
-
-  } catch (err) {
-    console.error('Terjadi error saat menyelesaikan pemesanan:', err);
-    if (err.response) {
-      console.error('Respon error dari backend:', err.response.data);
-      Alert.alert('❌ Error', err.response.data?.message || 'Terjadi kesalahan pada server.');
-    } else {
-      Alert.alert('❌ Error', 'Tidak dapat menghubungi server.');
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
 
@@ -227,71 +343,130 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Pemesanan Tiket</Text>
+      <Text style={styles.title}>
+        {transaksiData?.status === 'Selesai' ? '' : 'Pemesanan Tiket'}
+      </Text>
 
-      <Text style={styles.label}>Nama Wisata:</Text>
-      <Text style={styles.readonly}>{wisata?.nama_wisata || wisata?.name || '-'}</Text>
-
-      <Text style={styles.label}>Harga per Tiket:</Text>
-      <Text style={styles.readonly}>Rp {hargaTiket}</Text>
-
-      <Text style={styles.label}>Jumlah Tiket:</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="number-pad"
-        placeholder="Masukkan jumlah tiket"
-        value={jumlahTiket}
-        onChangeText={setJumlahTiket}
-      />
-
-      <Text style={styles.label}>Total Harga:</Text>
-      <Text style={styles.total}>Rp {totalHarga}</Text>
-
-      <TouchableOpacity
-        style={[styles.button, loading && { backgroundColor: '#999' }]}
-        onPress={handlePemesanan}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Lanjutkan Pemesanan</Text>
-        )}
-      </TouchableOpacity>
-
-      {showQR && transaksiData && (
-        <View style={{ alignItems: 'center', marginTop: 30 }}>
-          {transaksiData?.status === 'Selesai' && (
+      {transaksiData?.status !== 'Selesai' && (
         <>
-          <Text style={{ marginBottom: 10, fontWeight: 'bold' }}>QR Code Pemesanan:</Text>
-          <View
-            ref={qrRef}
-            collapsable={false}
-            style={{ backgroundColor: '#fff', padding: 10 }}
-          >
-            <QRCode value={renderQRString()} size={200} />
-          </View>
+          <Text style={styles.label}>Nama Wisata:</Text>
+          <Text style={styles.readonly}>
+            {transaksiData?.nama_wisata || wisata?.nama_wisata || wisata?.name || '-'}
+          </Text>
 
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: 'green', marginTop: 20 }]}
-            onPress={simpanQRKeGaleri}
-          >
-            <Text style={styles.buttonText}>📥 Simpan QR ke Galeri</Text>
-          </TouchableOpacity>
+          <Text style={styles.label}>Harga per Tiket:</Text>
+          <Text style={styles.readonly}>Rp {hargaTiket}</Text>
+
+          <Text style={styles.label}>Jumlah Tiket:</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="number-pad"
+            placeholder="Masukkan jumlah tiket"
+            value={jumlahTiket}
+            onChangeText={setJumlahTiket}
+          />
+
+          <Text style={styles.label}>Total Harga:</Text>
+          <Text style={styles.total}>Rp {totalHarga}</Text>
         </>
       )}
 
 
+
+      {(!transaksiData || (transaksiData.status !== 'Pending' && transaksiData.status !== 'Selesai')) && (
+        <TouchableOpacity
+          style={[styles.button, loading && { backgroundColor: '#999' }]}
+          onPress={handlePemesanan}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Lanjutkan Pemesanan</Text>
+          )}
+        </TouchableOpacity>
+      )}
+
+
+      {showQR && transaksiData && (
+        <View style={{ marginTop: 30, alignItems: 'center' }}>
+          {/* Tampilkan struk HANYA jika status "Selesai" */}
+          {transaksiData.status === 'Selesai' && (
+            <>
+              {/* Struk yang akan disimpan */}
+              <View ref={strukRef} collapsable={false} style={styles.strukBox}>
+                <Text style={styles.strukTitle}> Bukti Pemesanan</Text>
+
+                <View style={styles.strukRow}>
+                  <Text style={styles.strukLabel}>Nama</Text>
+                  <Text style={styles.strukValue}>{transaksiData.nama_pengguna}</Text>
+                </View>
+
+                <View style={styles.strukRow}>
+                  <Text style={styles.strukLabel}>Wisata</Text>
+                  <Text style={styles.strukValue}>{transaksiData.nama_wisata}</Text>
+                </View>
+
+                <View style={styles.strukRow}>
+                  <Text style={styles.strukLabel}>Harga</Text>
+                  <Text style={styles.strukValue}>Rp {transaksiData.harga_tiket}</Text>
+                </View>
+
+                <View style={styles.strukRow}>
+                  <Text style={styles.strukLabel}>Jumlah</Text>
+                  <Text style={styles.strukValue}>{transaksiData.jumlah_tiket}</Text>
+                </View>
+
+                <View style={styles.strukRow}>
+                  <Text style={styles.strukLabel}>Total</Text>
+                  <Text style={styles.strukValue}>Rp {transaksiData.total_harga}</Text>
+                </View>
+
+                <View style={styles.strukRow}>
+                  <Text style={styles.strukLabel}>Tanggal</Text>
+                  <Text style={styles.strukValue}>{transaksiData.tanggal_pemesanan}</Text>
+                </View>
+
+                <View style={styles.strukRow}>
+                  <Text style={styles.strukLabel}>Status</Text>
+                  <Text style={[styles.strukValue, { color: 'green' }]}>
+                    {transaksiData.status}
+                  </Text>
+                </View>
+
+                <Text style={{ marginTop: 15, fontWeight: 'bold' }}>QR Code:</Text>
+                <View
+                  style={{ backgroundColor: '#fff', padding: 10, marginTop: 10 }}
+                >
+                  <QRCode value={renderQRString()} size={200} />
+                </View>
+              </View>
+
+              
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: 'green', marginTop: 20 }]}
+                onPress={simpanStrukKeGaleri}
+              >
+                <Feather name="download" size={20} color="#fff" />
+              </TouchableOpacity>
+
+            </>
+          )}
+
+          {/* Tombol konfirmasi hanya muncul jika status masih Pending */}
           {transaksiData.status === 'Pending' && (
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: 'orange', marginTop: 10 }]}
+              style={[styles.button, { backgroundColor: 'orange', marginTop: 20 }]}
               onPress={handleSelesaikan}
             >
-              <Text style={styles.buttonText}>✔️ Selesaikan Pemesanan</Text>
+              <Text style={styles.buttonText}>Konfirmasi Pemesanan</Text>
             </TouchableOpacity>
           )}
         </View>
+
       )}
+
+
     </ScrollView>
   );
 }
@@ -342,4 +517,41 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  strukContainer: {
+    marginTop: 30,
+    alignItems: 'center',
+  },
+  strukBox: {
+    width: '100%',
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    backgroundColor: '#fdfdfd',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  strukTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  strukRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  strukLabel: {
+    fontWeight: '600',
+    color: '#555',
+  },
+  strukValue: {
+    fontWeight: 'bold',
+    color: '#222',
+  },
+
 });

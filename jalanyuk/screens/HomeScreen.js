@@ -1,3 +1,4 @@
+// ...import dan useState tetap sama...
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -16,10 +17,14 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { getAllWisata, getAllPemesanan } from '../API';
+import { getAllWisata, getAllPemesanan, getAllRoles, getPenggunaById } from '../API';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
+import { Feather } from '@expo/vector-icons';
+
+import { FontAwesome } from '@expo/vector-icons';
+
 import * as MediaLibrary from 'expo-media-library';
 
 const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
@@ -53,6 +58,8 @@ export default function HomeScreen({ navigation }) {
   const [orderLoading, setOrderLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState(null);
+  const [pengguna, setPengguna] = useState(null);
+  const [roleName, setRoleName] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedQRData, setSelectedQRData] = useState(null);
   const qrRef = useRef();
@@ -93,14 +100,36 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const fetchData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+
+      const data = await getPenggunaById(parseInt(userId));
+      setPengguna(data);
+
+      const rolesData = await getAllRoles();
+      const role = rolesData.find((r) => r.id === data.id_role);
+      setRoleName(role?.nama_role || 'Tidak ditemukan');
+    } catch (error) {
+      console.log('Gagal memuat data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const fetchMyOrders = async () => {
     try {
       setOrderLoading(true);
       const userId = await AsyncStorage.getItem('userId');
       const nama = await AsyncStorage.getItem('userNamaLengkap');
+      const status = await AsyncStorage.getItem('userStatus');
+      console.log('USER ASYNC:', { userId, nama, status });
+
       if (!userId) return;
 
-      setUser({ id: parseInt(userId), nama_lengkap: nama });
+      setUser({ id: parseInt(userId), nama_lengkap: nama, status: status });
 
       const [allOrders, allWisata] = await Promise.all([
         getAllPemesanan(),
@@ -129,7 +158,17 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     fetchWisataData();
     fetchMyOrders();
+    fetchData();
   }, []);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const id = await AsyncStorage.getItem('userId');
+      const nama = await AsyncStorage.getItem('userNamaLengkap');
+      setUser({ id: parseInt(id), nama_lengkap: nama });
+    };
+    if (selectedTab === 'Profile') loadUser();
+  }, [selectedTab]);
 
   const filteredData = wisataList.filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase())
@@ -138,7 +177,6 @@ export default function HomeScreen({ navigation }) {
   const handleTabPress = (tabKey) => {
     setSelectedTab(tabKey);
     if (tabKey === 'Favorit') navigation.navigate('Favorit');
-    else if (tabKey === 'Profile') navigation.navigate('Profile');
   };
 
   const renderQRString = (order) => {
@@ -187,16 +225,13 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.cardContent}>
                 <View style={styles.info}>
                   <Text style={styles.title}>{item.name}</Text>
-
                   <Text style={styles.price}>
                     Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
                   </Text>
-
                   <Text style={styles.subtitle}>
                     {item.location} • ⭐ {item.rating} ({item.reviewCount} ulasan)
                   </Text>
                   <Text style={styles.category}>{item.category}</Text>
-
                 </View>
                 <TouchableOpacity
                   onPress={() => navigation.navigate('Detail', { wisata: item })}
@@ -216,70 +251,112 @@ export default function HomeScreen({ navigation }) {
     <ScrollView
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchMyOrders} />}
     >
-
       {orderLoading ? (
         <ActivityIndicator size="large" color="#007bff" />
       ) : orders.length === 0 ? (
         <Text style={styles.empty}>Belum ada pemesanan.</Text>
       ) : (
-        orders.map((order, index) => (
-          <View key={index} style={styles.card}>
-            <Text style={styles.label}>Nama Wisata:</Text>
-            <Text style={styles.value}>{order.nama_wisata}</Text>
+        orders
+          .slice()
+          .sort((a, b) => {
+            if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+            if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+            return new Date(b.tanggal_pemesanan) - new Date(a.tanggal_pemesanan);
+          })
+          .map((order, index) => (
+            <View key={index} style={styles.card}>
+              <Text style={styles.label}>Nama Wisata:</Text>
+              <Text style={styles.value}>{order.nama_wisata}</Text>
 
-            <Text style={styles.label}>Jumlah Tiket:</Text>
-            <Text style={styles.value}>{order.jumlah_tiket}</Text>
+              <Text style={styles.label}>Jumlah Tiket:</Text>
+              <Text style={styles.value}>{order.jumlah_tiket}</Text>
 
-            <Text style={styles.label}>Total Harga:</Text>
-            <Text style={styles.value}>Rp {order.total_harga}</Text>
+              <Text style={styles.label}>Total Harga:</Text>
+              <Text style={styles.value}>Rp {order.total_harga}</Text>
 
-            <Text style={styles.label}>Tanggal Pemesanan:</Text>
-            <Text style={styles.value}>{order.tanggal_pemesanan}</Text>
+              <Text style={styles.label}>Tanggal Pemesanan:</Text>
+              <Text style={styles.value}>{order.tanggal_pemesanan}</Text>
 
-            <Text style={styles.label}>Status:</Text>
-            <Text
-              style={[
-                styles.value,
-                order.status === 'Pending'
-                  ? { color: 'orange', fontWeight: 'bold' }
-                  : order.status === 'Selesai'
-                    ? { color: 'green', fontWeight: 'bold' }
-                    : { color: '#555' },
-              ]}
-            >
-              {order.status}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.qrButton}
-              onPress={() => {
-                setSelectedQRData(order);
-                setModalVisible(true);
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Lihat QR</Text>
-            </TouchableOpacity>
-
-            {order.status === 'Pending' && (
-              <TouchableOpacity
-                style={[styles.qrButton, { backgroundColor: 'orange', marginTop: 8 }]}
-                onPress={() => navigation.navigate('PesanTiketScreen', { wisata: { id: order.id_wisata } })}
+              <Text style={styles.label}>Status:</Text>
+              <Text
+                style={[
+                  styles.value,
+                  order.status === 'Pending'
+                    ? { color: 'orange', fontWeight: 'bold' }
+                    : order.status === 'Selesai'
+                      ? { color: 'green', fontWeight: 'bold' }
+                      : { color: '#555' },
+                ]}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>✔️ Selesaikan Pemesanan</Text>
+                {order.status}
+              </Text>
+
+              <TouchableOpacity
+                style={styles.qrButton}
+                onPress={() => {
+                  setSelectedQRData(order);
+                  setModalVisible(true);
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Lihat QR</Text>
               </TouchableOpacity>
-            )}
-          </View>
-        ))
+
+              {order.status === 'Pending' && (
+                <TouchableOpacity
+                  style={[styles.qrButton, { backgroundColor: 'orange', marginTop: 8 }]}
+                  onPress={() => navigation.navigate('PesanTiketScreen', { wisata: { id_pemesanan: order.id } })}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Selesaikan Pemesanan</Text>
+                </TouchableOpacity>
+              )}
+
+              {order.status === 'Selesai' && (
+                <TouchableOpacity
+                  style={[styles.qrButton, { backgroundColor: '#007bff', marginTop: 8 }]}
+                  onPress={() => navigation.navigate('PesanTiketScreen', { wisata: { id_pemesanan: order.id } })}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Bukti Pemesanan</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))
 
       )}
     </ScrollView>
   );
+
+  const InfoRow = ({ label, value }) => (
+    <View style={{ width: '100%', marginBottom: 16 }}>
+      <Text style={{ fontWeight: '600', color: '#555' }}>{label}</Text>
+      <Text style={{ color: '#222', fontSize: 16 }}>{value}</Text>
+    </View>
+  );
+
+
+  const renderProfile = () => (
+    <ScrollView contentContainerStyle={{ paddingVertical: 30, alignItems: 'center' }}>
+      <View style={styles.profileCard}>
+        <Icon name="user-circle" size={100} color="#007bff" style={{ marginBottom: 20 }} />
+        {user ? (
+          <>
+            <InfoRow label="Nama Lengkap" value={user.nama_lengkap} />
+            <InfoRow label="Sebagai" value={roleName} />
+
+          </>
+        ) : (
+          <Text style={{ color: '#666' }}>Data pengguna tidak ditemukan.</Text>
+        )}
+      </View>
+    </ScrollView>
+  );
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {selectedTab === 'Beranda' && renderBeranda()}
         {selectedTab === 'MyOrder' && renderMyOrder()}
+        {selectedTab === 'Profile' && renderProfile()}
       </View>
 
       <View style={styles.tabBar}>
@@ -296,7 +373,6 @@ export default function HomeScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Modal QR */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalBackground}>
           <View style={styles.modalContent}>
@@ -317,6 +393,9 @@ export default function HomeScreen({ navigation }) {
     </SafeAreaView>
   );
 }
+
+// ...styles tetap sama (tidak diubah)...
+
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f2f2f2' },
@@ -341,6 +420,21 @@ const styles = StyleSheet.create({
     elevation: 4,
 
   },
+  profileCard: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 4,
+    marginBottom: 20,
+  },
+
   image: { width: '100%', height: 180, backgroundColor: '#ddd' },
   cardContent: {
     flexDirection: 'row',
