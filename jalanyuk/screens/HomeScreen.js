@@ -22,8 +22,9 @@ import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 
-const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const IMAGE_BASE_URL = 'http://192.168.165.125:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
+
 
 const ImageWithFallback = ({ uri, style }) => {
   const [error, setError] = useState(false);
@@ -56,6 +57,8 @@ export default function HomeScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedQRData, setSelectedQRData] = useState(null);
   const qrRef = useRef();
+  const [activeFilter, setActiveFilter] = useState('Semua');
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
   const fetchWisataData = async () => {
     try {
@@ -129,17 +132,38 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     fetchWisataData();
     fetchMyOrders();
-  }, []);
+    loadFavorites();
 
-  const filteredData = wisataList.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
-  );
+  }, []);
+  const loadFavorites = async () => {
+    const fav = await AsyncStorage.getItem('favoriteWisata');
+    if (fav) setFavoriteIds(JSON.parse(fav));
+  };
+  
+  const toggleFavorite = async (id) => {
+    const updatedFavorites = favoriteIds.includes(id)
+      ? favoriteIds.filter((favId) => favId !== id)
+      : [...favoriteIds, id];
+  
+    setFavoriteIds(updatedFavorites);
+    await AsyncStorage.setItem('favoriteWisata', JSON.stringify(updatedFavorites));
+  };
+
+  const filteredData = wisataList
+  .filter((item) => item.name.toLowerCase().includes(search.toLowerCase()))
+  .sort((a, b) => {
+    if (activeFilter === 'Rating') return b.rating - a.rating;
+    if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
+    return 0; // Semua
+  });
+
 
   const handleTabPress = (tabKey) => {
     setSelectedTab(tabKey);
-    if (tabKey === 'Favorit') navigation.navigate('Favorit');
+    if (tabKey === 'Favorit') navigation.navigate('FavoritScreen');
     else if (tabKey === 'Profile') navigation.navigate('Profile');
   };
+  
 
   const renderQRString = (order) => {
     return `Nama: ${user?.nama_lengkap}\nWisata: ${order.nama_wisata}\nJumlah: ${order.jumlah_tiket}\nTotal: Rp${order.total_harga}\nTanggal: ${order.tanggal_pemesanan}`;
@@ -167,6 +191,8 @@ export default function HomeScreen({ navigation }) {
   const renderBeranda = () => (
     <>
       <Text style={styles.header}>Wisata Indonesia</Text>
+  
+      {/* ðŸ” Input Pencarian */}
       <TextInput
         placeholder="Cari tempat wisata..."
         value={search}
@@ -174,6 +200,50 @@ export default function HomeScreen({ navigation }) {
         style={styles.search}
         placeholderTextColor="#999"
       />
+  
+      {/* ðŸŽšï¸ Filter Slider */}
+      <View style={styles.filterSlider}>
+        {['Semua', 'Rating', 'Harga'].map((filter) => (
+          <TouchableOpacity
+            key={filter}
+            onPress={() => setActiveFilter(filter)}
+            style={[
+              styles.filterButton,
+              activeFilter === filter && styles.filterButtonActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                activeFilter === filter && styles.filterButtonTextActive,
+              ]}
+            >
+              {filter}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+  
+      {/* ðŸ§­ Card Slider Horizontal */}
+      <Text style={styles.sliderTitle}>Rekomendasi Populer</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.sliderContainer}
+      >
+        {filteredData.slice(0, 5).map((item) => (
+          <TouchableOpacity
+            key={item.id}
+            style={styles.sliderCard}
+            onPress={() => navigation.navigate('Detail', { wisata: item })}
+          >
+            <ImageWithFallback uri={item.image} style={styles.sliderImage} />
+            <Text style={styles.sliderName} numberOfLines={1}>{item.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+  
+      {/* ðŸ“‹ FlatList Wisata Vertikal */}
       {loading ? (
         <ActivityIndicator size="large" color="#007bff" />
       ) : (
@@ -183,20 +253,26 @@ export default function HomeScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: 80 }}
           renderItem={({ item }) => (
             <View style={styles.card}>
+              {/* Favorite Icon */}
+              <TouchableOpacity onPress={() => toggleFavorite(item.id)} style={styles.favoriteIcon}>
+                <Icon
+                  name={favoriteIds.includes(item.id) ? 'heart' : 'heart-o'}
+                  size={20}
+                  color="red"
+                />
+              </TouchableOpacity>
+          
               <ImageWithFallback uri={item.image} style={styles.image} />
               <View style={styles.cardContent}>
                 <View style={styles.info}>
                   <Text style={styles.title}>{item.name}</Text>
-
                   <Text style={styles.price}>
                     Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
                   </Text>
-
                   <Text style={styles.subtitle}>
-                    {item.location} • ⭐ {item.rating} ({item.reviewCount} ulasan)
+                    {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
                   </Text>
                   <Text style={styles.category}>{item.category}</Text>
-
                 </View>
                 <TouchableOpacity
                   onPress={() => navigation.navigate('Detail', { wisata: item })}
@@ -207,10 +283,13 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
           )}
+          
+          
         />
       )}
     </>
   );
+  
 
   const renderMyOrder = () => (
     <ScrollView
@@ -265,7 +344,7 @@ export default function HomeScreen({ navigation }) {
                 style={[styles.qrButton, { backgroundColor: 'orange', marginTop: 8 }]}
                 onPress={() => navigation.navigate('PesanTiketScreen', { wisata: { id: order.id_wisata } })}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>✔️ Selesaikan Pemesanan</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>âœ”ï¸ Selesaikan Pemesanan</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -422,5 +501,70 @@ const styles = StyleSheet.create({
     color: 'green',
     fontWeight: 'bold',
   },
+  filterSlider: {
+    flexDirection: 'row',
+    marginTop: 12,
+    marginBottom: 10,
+  },
+  filterButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    backgroundColor: '#ddd',
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  filterButtonActive: {
+    backgroundColor: '#007bff',
+  },
+  filterButtonText: {
+    color: '#333',
+  },
+  filterButtonTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  sliderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  sliderContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  sliderCard: {
+    width: 160,
+    marginRight: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sliderImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#ccc',
+  },
+  sliderName: {
+    padding: 8,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  favoriteIcon: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#fff',
+    padding: 6,
+    borderRadius: 20,
+    elevation: 3,
+    zIndex: 10,
+  },
+  
 
 });

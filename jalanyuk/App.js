@@ -25,6 +25,8 @@ import Edit from './master/Pengguna/Edit';
 import ProfileScreen from './screens/ProfileScreen';
 import PemesananScreen from './screens/PesanTiketScreen';
 import MyOrder from './screens/MyOrder';
+import FavoritScreen from './screens/FavoritScreen';
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -165,6 +167,11 @@ export default function App() {
           <Stack.Screen
             name="AddPengguna"
             component={AddPengguna}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="FavoritScreen"
+            component={FavoritScreen}
             options={{ headerBackVisible: false }}
           />
         </Stack.Navigator>
