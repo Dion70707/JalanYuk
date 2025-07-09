@@ -44,8 +44,12 @@ const LoginScreen = ({ navigation }) => {
 
       if (user) {
         await AsyncStorage.setItem('userId', user.id.toString());
+        await AsyncStorage.setItem('userNamaLengkap', user.nama_lengkap); 
+
+        
 
         setNotifMessage('Login berhasil!');
+        console.log('User ditemukan:', user);
         setNotifType('success');
         setNotifVisible(true);
 

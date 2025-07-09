@@ -45,7 +45,9 @@ export default function DetailScreen({ route, navigation }) {
 
   const latitude = parseFloat(detailWisata?.koordinat_lat || 0);
   const longitude = parseFloat(detailWisata?.koordinat_lng || 0);
-  const imageUrl = getImageUrlById(detailWisata?.id_galeri);
+  const imageUrl = detailWisata?.id_galeri
+  ? `${IMAGE_BASE_URL}/galeri/${detailWisata.id_galeri}/image`
+  : FALLBACK_IMAGE;
 
   useEffect(() => {
     (async () => {
@@ -102,22 +104,33 @@ export default function DetailScreen({ route, navigation }) {
   }, []);
 
   const pickImageFromGallery = async () => {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') {
-    Alert.alert('Izin Ditolak', 'Aplikasi butuh akses ke galeri.');
-    return;
-  }
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsMultipleSelection: true, // untuk multiple
-    quality: 0.3,
-    selectionLimit: 5, // jika pakai expo SDK 50+, batasi jumlah maksimal
-  });
+  try {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin Ditolak', 'Aplikasi membutuhkan akses galeri.');
+      return;
+    }
 
-  if (!result.canceled && result.assets?.length > 0) {
-    setSelectedImages(result.assets.map(asset => asset.uri));
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      quality: 0.5,
+      allowsMultipleSelection: true,
+      selectionLimit: 5,  
+    });
+
+    if (!result.canceled && result.assets?.length > 0) {
+      const uris = result.assets.map(asset => asset.uri);
+      setSelectedImages(prev => [...prev, ...uris]);
+    }
+  } catch (error) {
+    console.error('Gagal memilih gambar:', error);
+    Alert.alert('Error', 'Gagal membuka galeri.');
   }
 };
+
+
+
+
 
 
 
@@ -439,41 +452,62 @@ export default function DetailScreen({ route, navigation }) {
 
 
           {/* Modal untuk ulasan */}
-          <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Tulis Komentar</Text>
-                <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
-                <TouchableOpacity onPress={pickImageFromGallery} style={styles.galleryButton}>
-                  <Ionicons name="images-outline" size={30} color="#007bff" />
-                </TouchableOpacity>
+          <Modal
+  visible={modalVisible}
+  animationType="slide"
+  transparent
+  onRequestClose={() => setModalVisible(false)}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContainer}>
+      <Text style={styles.modalTitle}>Tulis Komentar</Text>
+      <Text style={{ marginBottom: 8 }}>Rating: {selectedRating} ⭐</Text>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 10 }}>
-                  {selectedImages.map((uri, idx) => (
-                    <Image key={idx} source={{ uri }} style={styles.selectedImage} />
-                  ))}
+      {/* Tombol Pilih Gambar */}
+      <TouchableOpacity onPress={() => pickImageFromGallery()} style={styles.galleryButton}>
+        <Ionicons name="images-outline" size={30} color="#007bff" />
+        <Text style={{ marginTop: 4, fontSize: 12, color: '#007bff' }}>Pilih Gambar</Text>
+      </TouchableOpacity>
 
-                </ScrollView>
+      {/* Preview Gambar Terpilih */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginVertical: 10 }}
+      >
+        {selectedImages.map((uri, idx) => (
+          <Image
+            key={idx}
+            source={{ uri }}
+            style={styles.selectedImage}
+            onError={() => console.log(`Gagal load image ${uri}`)}
+          />
+        ))}
+      </ScrollView>
 
-                <TextInput
-                  multiline
-                  numberOfLines={4}
-                  value={reviewText}
-                  onChangeText={setReviewText}
-                  placeholder="Masukkan komentar..."
-                  style={styles.textInput}
-                />
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 15 }}>
-                    <Text style={{ color: '#888' }}>Batal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={submitReview}>
-                    <Text style={{ color: '#007bff', fontWeight: 'bold' }}>Kirim</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
+      {/* Text Input Ulasan */}
+      <TextInput
+        multiline
+        numberOfLines={4}
+        value={reviewText}
+        onChangeText={setReviewText}
+        placeholder="Masukkan komentar..."
+        style={styles.textInput}
+      />
+
+      {/* Tombol Kirim & Batal */}
+      <View style={styles.modalButtons}>
+        <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 15 }}>
+          <Text style={{ color: '#888' }}>Batal</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={submitReview}>
+          <Text style={{ color: '#007bff', fontWeight: 'bold' }}>Kirim</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>

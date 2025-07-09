@@ -293,6 +293,58 @@ export const togglePenggunaStatus = async (id, status) => {
   }
 };
 
+
+
+const handleSelesaikanPemesanan = async (order) => {
+  try {
+    const response = await axios.put('http://172.20.10.3:8080/trspemesanan', {
+      ...order,
+      status: 'Selesai', // opsional, karena backend juga override
+    });
+
+    if (response.data && response.data.result === 200) {
+      Alert.alert('Sukses', 'Pemesanan berhasil diselesaikan.');
+      fetchMyOrders(); // refresh data
+    } else {
+      Alert.alert('Gagal', 'Gagal menyelesaikan pemesanan.');
+    }
+  } catch (err) {
+    console.error('Error saat menyelesaikan pemesanan:', err);
+    Alert.alert('Error', 'Terjadi kesalahan saat menyelesaikan pemesanan.');
+  }
+};
+
+export const getAllPemesanan = async (payload) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/trspemesanans`, payload);
+    return response.data;
+  } catch (error) {
+    console.error('Gagal melakukan POST pemesanan:', error);
+    throw error;
+  }
+};
+
+export const postPemesanan = async (payload) => {
+  try {
+    const response = await axios.post(`${BASE_URL}/trspemesanan`, payload);
+    return response.data;
+  } catch (error) {
+    console.error('Gagal melakukan POST pemesanan:', error);
+    throw error;
+  }
+};
+
+const fetchTransaksiById = async (id) => {
+  try {
+    const response = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${id}`);
+    return response.data; // diasumsikan backend mengembalikan objek TrsPemesanan
+  } catch (error) {
+    console.error('Gagal ambil data transaksi:', error);
+    return null;
+  }
+};
+
+
 // ====== WISATA API ======
 
 

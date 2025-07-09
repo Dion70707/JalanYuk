@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,14 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { postPemesanan, getAllWisata } from '../API';
+import { postPemesanan, getAllWisata, fetchTransaksiById, handleSelesaikanPemesanan } from '../API';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import QRCode from 'react-native-qrcode-svg';
+import { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
+import axios from 'axios';
 
-export default function PemesananScreen({ route, navigation }) {
+export default function PemesananScreen({ route }) {
   const { wisata } = route.params;
 
   const [jumlahTiket, setJumlahTiket] = useState('');
@@ -20,6 +24,9 @@ export default function PemesananScreen({ route, navigation }) {
   const [hargaTiket, setHargaTiket] = useState(0);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const [showQR, setShowQR] = useState(false);
+  const [transaksiData, setTransaksiData] = useState(null);
+  const qrRef = useRef();
 
   useEffect(() => {
     const fetchHargaTiket = async () => {
@@ -43,10 +50,13 @@ export default function PemesananScreen({ route, navigation }) {
   useEffect(() => {
     const getUserData = async () => {
       try {
-        const userData = await AsyncStorage.getItem('userId');
-        if (userData) {
-          const parsedId = parseInt(userData);
-          setUser({ id: parsedId });
+        const userId = await AsyncStorage.getItem('userId');
+        const nama = await AsyncStorage.getItem('userNamaLengkap');
+        if (userId && nama) {
+          setUser({
+            id: parseInt(userId),
+            nama_lengkap: nama,
+          });
         } else {
           Alert.alert('Error', 'Pengguna belum login.');
         }
@@ -68,26 +78,18 @@ export default function PemesananScreen({ route, navigation }) {
   }, [jumlahTiket, hargaTiket]);
 
   const handlePemesanan = async () => {
-    const wisataId = wisata?.id;
-
     if (!jumlahTiket || isNaN(jumlahTiket) || parseInt(jumlahTiket) <= 0) {
       Alert.alert('Error', 'Masukkan jumlah tiket yang valid.');
       return;
     }
-
     if (!user?.id) {
       Alert.alert('Error', 'Pengguna belum login.');
       return;
     }
 
-    if (!wisataId) {
-      Alert.alert('Error', 'Data wisata tidak tersedia.');
-      return;
-    }
-
     const payload = {
       id: 0,
-      id_wisata: wisataId,
+      id_wisata: wisata.id,
       id_pengguna: user.id,
       jumlah_tiket: parseInt(jumlahTiket),
       total_harga: totalHarga,
@@ -97,11 +99,31 @@ export default function PemesananScreen({ route, navigation }) {
     try {
       setLoading(true);
       const result = await postPemesanan(payload);
-      console.log('Response Pemesanan:', result);
 
       if (result?.result === 200) {
         Alert.alert('✅ Sukses', result.message || 'Pemesanan berhasil dibuat.');
-        navigation.goBack();
+
+        const transaksi = {
+          id: result.id || payload.id, 
+          status: 'Pending',
+          nama_pengguna: user.nama_lengkap,
+          nama_wisata: wisata?.nama_wisata || wisata?.name || '-',
+          harga_tiket: hargaTiket,
+          jumlah_tiket: parseInt(jumlahTiket),
+          total_harga: totalHarga,
+          tanggal_pemesanan: payload.tanggal_pemesanan,
+          id_wisata: wisata.id,
+          id_pengguna: user.id,
+        };
+
+        console.log('=== Data transaksi berhasil dibuat ===');
+        console.log('Payload kirim:', payload);
+        console.log('Response backend:', result);
+        console.log('Transaksi untuk state:', transaksi);
+        console.log('=======================================');
+
+        setTransaksiData(transaksi);
+        setShowQR(true);
       } else {
         Alert.alert('❌ Gagal', result.message || 'Terjadi kesalahan saat menyimpan.');
       }
@@ -111,6 +133,96 @@ export default function PemesananScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+
+  const handleSelesaikan = async () => {
+  console.log('✔️ Tombol Selesaikan ditekan');
+
+  if (!transaksiData || !transaksiData.id || transaksiData.id === 0) {
+    console.log('❌ Data transaksi tidak valid:', transaksiData);
+    Alert.alert('Error', 'Data transaksi tidak valid. Tidak dapat menyelesaikan pemesanan.');
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    // Ambil data transaksi dari backend berdasarkan ID
+    const fullTransaksi = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${transaksiData.id}`);
+    const existingData = fullTransaksi?.data;
+
+    if (!existingData || !existingData.id) {
+      Alert.alert('Error', 'Transaksi tidak ditemukan di server.');
+      return;
+    }
+
+    // Update hanya status menjadi "Selesai"
+    const updatePayload = {
+      ...existingData,
+      status: "Selesai",
+    };
+
+    console.log('🚀 Mengirim update PUT:', updatePayload);
+
+    const response = await axios.put('http://172.20.10.3:8080/trspemesanan', updatePayload);
+
+    console.log('✅ Respon dari backend:', response.data);
+
+    if (response?.data?.result === 200) {
+      Alert.alert('✅ Berhasil', 'Pemesanan telah diselesaikan!');
+      setTransaksiData(prev => ({ ...prev, status: 'Selesai' }));
+    } else {
+      Alert.alert('❌ Gagal', response?.data?.message || 'Gagal menyelesaikan pemesanan.');
+    }
+
+  } catch (err) {
+    console.error('Terjadi error saat menyelesaikan pemesanan:', err);
+    if (err.response) {
+      console.error('Respon error dari backend:', err.response.data);
+      Alert.alert('❌ Error', err.response.data?.message || 'Terjadi kesalahan pada server.');
+    } else {
+      Alert.alert('❌ Error', 'Tidak dapat menghubungi server.');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
+  const simpanQRKeGaleri = async () => {
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Izin ditolak', 'Tidak dapat menyimpan gambar tanpa izin.');
+        return;
+      }
+
+      const uri = await captureRef(qrRef.current, {
+        format: 'png',
+        quality: 1,
+      });
+
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      await MediaLibrary.createAlbumAsync('QR-Pemesanan', asset, false);
+
+      Alert.alert('✅ Disimpan', 'QR Code berhasil disimpan ke galeri!');
+    } catch (error) {
+      console.error('Gagal simpan QR:', error);
+      Alert.alert('Gagal', 'Tidak bisa menyimpan QR Code.');
+    }
+  };
+
+  const renderQRString = () => {
+    if (!transaksiData) return '';
+    return `Nama: ${transaksiData.nama_pengguna}
+Wisata: ${transaksiData.nama_wisata}
+Harga Tiket: Rp${transaksiData.harga_tiket}
+Jumlah Tiket: ${transaksiData.jumlah_tiket}
+Total Harga: Rp${transaksiData.total_harga}
+Tanggal: ${transaksiData.tanggal_pemesanan}`;
   };
 
   return (
@@ -143,9 +255,43 @@ export default function PemesananScreen({ route, navigation }) {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Pesan Sekarang</Text>
+          <Text style={styles.buttonText}>Lanjutkan Pemesanan</Text>
         )}
       </TouchableOpacity>
+
+      {showQR && transaksiData && (
+        <View style={{ alignItems: 'center', marginTop: 30 }}>
+          {transaksiData?.status === 'Selesai' && (
+        <>
+          <Text style={{ marginBottom: 10, fontWeight: 'bold' }}>QR Code Pemesanan:</Text>
+          <View
+            ref={qrRef}
+            collapsable={false}
+            style={{ backgroundColor: '#fff', padding: 10 }}
+          >
+            <QRCode value={renderQRString()} size={200} />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: 'green', marginTop: 20 }]}
+            onPress={simpanQRKeGaleri}
+          >
+            <Text style={styles.buttonText}>📥 Simpan QR ke Galeri</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+
+          {transaksiData.status === 'Pending' && (
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: 'orange', marginTop: 10 }]}
+              onPress={handleSelesaikan}
+            >
+              <Text style={styles.buttonText}>✔️ Selesaikan Pemesanan</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </ScrollView>
   );
 }

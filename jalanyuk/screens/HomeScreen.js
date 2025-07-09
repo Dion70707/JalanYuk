@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,17 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Image,
+  ScrollView,
+  RefreshControl,
+  Alert,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { getAllWisata } from '../API';
+import { getAllWisata, getAllPemesanan } from '../API';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import QRCode from 'react-native-qrcode-svg';
+import { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
 
 const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
@@ -31,8 +39,8 @@ const ImageWithFallback = ({ uri, style }) => {
 
 const TABS = [
   { key: 'Beranda', label: 'Beranda', icon: 'home' },
-  { key: 'Favorit', label: 'Favorit', icon: 'heart' },
   { key: 'MyOrder', label: 'My Order', icon: 'ticket' },
+  { key: 'Favorit', label: 'Favorit', icon: 'heart' },
   { key: 'Profile', label: 'Profile', icon: 'user' },
 ];
 
@@ -41,6 +49,13 @@ export default function HomeScreen({ navigation }) {
   const [selectedTab, setSelectedTab] = useState('Beranda');
   const [wisataList, setWisataList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
+  const [orderLoading, setOrderLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedQRData, setSelectedQRData] = useState(null);
+  const qrRef = useRef();
 
   const fetchWisataData = async () => {
     try {
@@ -65,6 +80,7 @@ export default function HomeScreen({ navigation }) {
             image: imageUrl,
             latitude: parseFloat(item.koordinat_lat) || 0,
             longitude: parseFloat(item.koordinat_lng) || 0,
+            ticketPrice: item.harga_tiket || 0,
           };
         })
       );
@@ -77,8 +93,42 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const fetchMyOrders = async () => {
+    try {
+      setOrderLoading(true);
+      const userId = await AsyncStorage.getItem('userId');
+      const nama = await AsyncStorage.getItem('userNamaLengkap');
+      if (!userId) return;
+
+      setUser({ id: parseInt(userId), nama_lengkap: nama });
+
+      const [allOrders, allWisata] = await Promise.all([
+        getAllPemesanan(),
+        getAllWisata(),
+      ]);
+
+      const filtered = allOrders
+        .filter((order) => order.id_pengguna === parseInt(userId))
+        .map((order) => {
+          const matchedWisata = allWisata.find((w) => w.id === order.id_wisata);
+          return {
+            ...order,
+            nama_wisata: matchedWisata?.nama_wisata || 'Wisata tidak ditemukan',
+          };
+        });
+
+      setOrders(filtered);
+    } catch (err) {
+      console.error('Gagal mengambil data pesanan:', err);
+    } finally {
+      setOrderLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     fetchWisataData();
+    fetchMyOrders();
   }, []);
 
   const filteredData = wisataList.filter((item) =>
@@ -89,52 +139,149 @@ export default function HomeScreen({ navigation }) {
     setSelectedTab(tabKey);
     if (tabKey === 'Favorit') navigation.navigate('Favorit');
     else if (tabKey === 'Profile') navigation.navigate('Profile');
-    else if (tabKey === 'MyOrder') navigation.navigate('MyOrder');
   };
+
+  const renderQRString = (order) => {
+    return `Nama: ${user?.nama_lengkap}\nWisata: ${order.nama_wisata}\nJumlah: ${order.jumlah_tiket}\nTotal: Rp${order.total_harga}\nTanggal: ${order.tanggal_pemesanan}`;
+  };
+
+  const saveQRToGallery = async () => {
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Izin Ditolak', 'Tidak dapat menyimpan gambar tanpa izin.');
+        return;
+      }
+
+      const uri = await captureRef(qrRef, { format: 'png', quality: 1 });
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      await MediaLibrary.createAlbumAsync('QR-Pemesanan', asset, false);
+
+      Alert.alert('Sukses', 'QR Code berhasil disimpan ke galeri!');
+    } catch (err) {
+      console.error('Gagal menyimpan QR:', err);
+      Alert.alert('Error', 'Gagal menyimpan QR.');
+    }
+  };
+
+  const renderBeranda = () => (
+    <>
+      <Text style={styles.header}>Wisata Indonesia</Text>
+      <TextInput
+        placeholder="Cari tempat wisata..."
+        value={search}
+        onChangeText={setSearch}
+        style={styles.search}
+        placeholderTextColor="#999"
+      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" />
+      ) : (
+        <FlatList
+          data={filteredData}
+          keyExtractor={(item) => item.id?.toString()}
+          contentContainerStyle={{ paddingBottom: 80 }}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <ImageWithFallback uri={item.image} style={styles.image} />
+              <View style={styles.cardContent}>
+                <View style={styles.info}>
+                  <Text style={styles.title}>{item.name}</Text>
+
+                  <Text style={styles.price}>
+                    Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
+                  </Text>
+
+                  <Text style={styles.subtitle}>
+                    {item.location} • ⭐ {item.rating} ({item.reviewCount} ulasan)
+                  </Text>
+                  <Text style={styles.category}>{item.category}</Text>
+
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Detail', { wisata: item })}
+                  style={styles.detailButton}
+                >
+                  <Text style={styles.detailButtonText}>Detail</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
+      )}
+    </>
+  );
+
+  const renderMyOrder = () => (
+    <ScrollView
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchMyOrders} />}
+    >
+
+      {orderLoading ? (
+        <ActivityIndicator size="large" color="#007bff" />
+      ) : orders.length === 0 ? (
+        <Text style={styles.empty}>Belum ada pemesanan.</Text>
+      ) : (
+        orders.map((order, index) => (
+          <View key={index} style={styles.card}>
+            <Text style={styles.label}>Nama Wisata:</Text>
+            <Text style={styles.value}>{order.nama_wisata}</Text>
+
+            <Text style={styles.label}>Jumlah Tiket:</Text>
+            <Text style={styles.value}>{order.jumlah_tiket}</Text>
+
+            <Text style={styles.label}>Total Harga:</Text>
+            <Text style={styles.value}>Rp {order.total_harga}</Text>
+
+            <Text style={styles.label}>Tanggal Pemesanan:</Text>
+            <Text style={styles.value}>{order.tanggal_pemesanan}</Text>
+
+            <Text style={styles.label}>Status:</Text>
+            <Text
+              style={[
+                styles.value,
+                order.status === 'Pending'
+                  ? { color: 'orange', fontWeight: 'bold' }
+                  : order.status === 'Selesai'
+                    ? { color: 'green', fontWeight: 'bold' }
+                    : { color: '#555' },
+              ]}
+            >
+              {order.status}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.qrButton}
+              onPress={() => {
+                setSelectedQRData(order);
+                setModalVisible(true);
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Lihat QR</Text>
+            </TouchableOpacity>
+
+            {order.status === 'Pending' && (
+              <TouchableOpacity
+                style={[styles.qrButton, { backgroundColor: 'orange', marginTop: 8 }]}
+                onPress={() => navigation.navigate('PesanTiketScreen', { wisata: { id: order.id_wisata } })}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>✔️ Selesaikan Pemesanan</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))
+
+      )}
+    </ScrollView>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.header}>Wisata Indonesia</Text>
-        <TextInput
-          placeholder="Cari tempat wisata..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.search}
-          placeholderTextColor="#999"
-        />
-        {loading ? (
-          <ActivityIndicator size="large" color="#007bff" />
-        ) : (
-          <FlatList
-            data={filteredData}
-            keyExtractor={(item) => item.id?.toString()}
-            contentContainerStyle={{ paddingBottom: 80 }}
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-                <ImageWithFallback uri={item.image} style={styles.image} />
-                <View style={styles.cardContent}>
-                  <View style={styles.info}>
-                    <Text style={styles.title}>{item.name}</Text>
-                    <Text style={styles.subtitle}>
-                      {item.location} • ⭐ {item.rating} ({item.reviewCount} ulasan)
-                    </Text>
-                    <Text style={styles.category}>{item.category}</Text>
-                  </View>
-                  <TouchableOpacity
-                    // HomeScreen.js
-                    onPress={() => navigation.navigate('Detail', { wisata: item })}
-
-                    style={styles.detailButton}
-                  >
-                    <Text style={styles.detailButtonText}>Detail</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          />
-        )}
+        {selectedTab === 'Beranda' && renderBeranda()}
+        {selectedTab === 'MyOrder' && renderMyOrder()}
       </View>
+
       <View style={styles.tabBar}>
         {TABS.map((tab) => (
           <TouchableOpacity
@@ -148,46 +295,61 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Modal QR */}
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContent}>
+            <View ref={qrRef} collapsable={false} style={styles.qrContainer}>
+              {selectedQRData && (
+                <QRCode value={renderQRString(selectedQRData)} size={200} />
+              )}
+            </View>
+            <TouchableOpacity style={styles.qrSave} onPress={saveQRToGallery}>
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Simpan QR</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.qrClose}>
+              <Text style={{ color: '#007bff' }}>Tutup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f2f2f2' },
-  container: { flex: 1, paddingHorizontal: 12, backgroundColor: '#f2f2f2' },
-  header: { fontSize: 28, fontWeight: 'bold', color: '#333', marginBottom: 12, textAlign: 'center' },
+  container: { flex: 1, paddingHorizontal: 12 },
+  header: { fontSize: 24, fontWeight: 'bold', marginVertical: 12, textAlign: 'center' },
   search: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
     backgroundColor: '#fff',
   },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
     marginBottom: 16,
-    overflow: 'hidden',
+    padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 4,
+
   },
-  image: {
-    width: '100%',
-    height: 180,
-    backgroundColor: '#ddd',
-  },
+  image: { width: '100%', height: 180, backgroundColor: '#ddd' },
   cardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    marginTop: 12,
   },
   info: { flex: 1, paddingRight: 10 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+  title: { fontSize: 20, fontWeight: 'bold' },
   subtitle: { color: '#666', marginTop: 4 },
   category: { marginTop: 6, fontStyle: 'italic', color: '#007bff' },
   detailButton: {
@@ -197,6 +359,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   detailButtonText: { color: '#fff', fontWeight: 'bold' },
+  label: { fontWeight: 'bold', color: '#555' },
+  value: { fontSize: 16, marginBottom: 5 },
+  empty: { textAlign: 'center', color: '#888', marginTop: 40 },
   tabBar: {
     position: 'absolute',
     bottom: 0,
@@ -220,4 +385,42 @@ const styles = StyleSheet.create({
     width: '50%',
     alignSelf: 'center',
   },
+  qrButton: {
+    marginTop: 10,
+    backgroundColor: 'green',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: '#000000aa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  qrContainer: {
+    padding: 10,
+    backgroundColor: '#fff',
+  },
+  qrSave: {
+    backgroundColor: '#007bff',
+    padding: 10,
+    marginTop: 12,
+    borderRadius: 8,
+  },
+  qrClose: {
+    marginTop: 10,
+  },
+  price: {
+    marginTop: 4,
+    color: 'green',
+    fontWeight: 'bold',
+  },
+
 });
