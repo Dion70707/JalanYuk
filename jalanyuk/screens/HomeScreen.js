@@ -22,8 +22,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 
-const IMAGE_BASE_URL = 'http://192.168.165.125:8080';
-const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
+const IMAGE_BASE_URL = 'http://192.168.136.125:8080';
+const FALLBACK_IMAGE = 'http://192.168.136.125:8080';
 
 
 const ImageWithFallback = ({ uri, style }) => {
@@ -71,7 +71,10 @@ export default function HomeScreen({ navigation }) {
           const imageUrl = item.id_galeri
             ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
             : FALLBACK_IMAGE;
-
+      
+          // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
+          const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
+      
           return {
             id: item.id,
             name: item.nama_wisata || 'Tanpa Nama',
@@ -84,9 +87,11 @@ export default function HomeScreen({ navigation }) {
             latitude: parseFloat(item.koordinat_lat) || 0,
             longitude: parseFloat(item.koordinat_lng) || 0,
             ticketPrice: item.harga_tiket || 0,
+            kota: kota,
           };
         })
       );
+      
 
       setWisataList(mappedData);
     } catch (error) {
@@ -150,12 +155,20 @@ export default function HomeScreen({ navigation }) {
   };
 
   const filteredData = wisataList
-  .filter((item) => item.name.toLowerCase().includes(search.toLowerCase()))
+  .filter((item) =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  )
   .sort((a, b) => {
-    if (activeFilter === 'Rating') return b.rating - a.rating;
-    if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
-    return 0; // Semua
+    const kotaA = a.kota.toLowerCase();
+    const kotaB = b.kota.toLowerCase();
+
+    if (kotaA < kotaB) return -1;
+    if (kotaA > kotaB) return 1;
+
+    // Jika kota sama, urutkan berdasarkan nama wisata
+    return a.name.localeCompare(b.name);
   });
+
 
 
   const handleTabPress = (tabKey) => {
@@ -187,108 +200,191 @@ export default function HomeScreen({ navigation }) {
       Alert.alert('Error', 'Gagal menyimpan QR.');
     }
   };
-
-  const renderBeranda = () => (
-    <>
-      <Text style={styles.header}>Wisata Indonesia</Text>
+  const filteredList = wisataList.filter((item) =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  );
   
-      {/* ðŸ” Input Pencarian */}
-      <TextInput
-        placeholder="Cari tempat wisata..."
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-        placeholderTextColor="#999"
-      />
+  const sortedSliderList = [...filteredList].sort((a, b) => {
+    if (activeFilter === 'Rating') return b.rating - a.rating;
+    if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
+    return 0; // 'Semua'
+  });
   
-      {/* ðŸŽšï¸ Filter Slider */}
-      <View style={styles.filterSlider}>
-        {['Semua', 'Rating', 'Harga'].map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            onPress={() => setActiveFilter(filter)}
-            style={[
-              styles.filterButton,
-              activeFilter === filter && styles.filterButtonActive,
-            ]}
-          >
-            <Text
+  const renderBeranda = () => {
+    const filteredData = wisataList
+      .filter((item) =>
+        item.name.toLowerCase().includes(search.toLowerCase())
+      )
+      .sort((a, b) => {
+        const kotaA = (a.kota || '').toLowerCase();
+        const kotaB = (b.kota || '').toLowerCase();
+        if (kotaA < kotaB) return -1;
+        if (kotaA > kotaB) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  
+    const sortedSliderList = [...filteredData].sort((a, b) => {
+      if (activeFilter === 'Rating') return b.rating - a.rating;
+      if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
+      return 0;
+    });
+  
+    return (
+      <>
+        <Text style={styles.header}>Wisata Indonesia</Text>
+  
+        {/* 🔍 Input Pencarian */}
+        <TextInput
+          placeholder="Cari tempat wisata..."
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
+          placeholderTextColor="#999"
+        />
+  
+        {/* 🎛️ Filter Slider */}
+        <View style={styles.filterSlider}>
+          {['Semua', 'Rating', 'Harga'].map((filter) => (
+            <TouchableOpacity
+              key={filter}
+              onPress={() => setActiveFilter(filter)}
               style={[
-                styles.filterButtonText,
-                activeFilter === filter && styles.filterButtonTextActive,
+                styles.filterButton,
+                activeFilter === filter && styles.filterButtonActive,
               ]}
             >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  activeFilter === filter && styles.filterButtonTextActive,
+                ]}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
   
-      {/* ðŸ§­ Card Slider Horizontal */}
-      <Text style={styles.sliderTitle}>Rekomendasi Populer</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.sliderContainer}
-      >
-        {filteredData.slice(0, 5).map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.sliderCard}
-            onPress={() => navigation.navigate('Detail', { wisata: item })}
-          >
-            <ImageWithFallback uri={item.image} style={styles.sliderImage} />
-            <Text style={styles.sliderName} numberOfLines={1}>{item.name}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        {/* 🖼️ Filter Cepat Slider */}
+        <ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={{ marginBottom: 16 }}
+  contentContainerStyle={{ paddingHorizontal: 4 }}
+>
+  {/* Rating */}
+  <TouchableOpacity
+    style={[styles.filterCard, { marginRight: 12 }]}
+    onPress={() =>
+      navigation.navigate('TopRatingScreen', {
+        data: wisataList,
+      })
+    }
+  >
+    <ImageWithFallback
+      uri={[...wisataList].sort((a, b) => b.rating - a.rating)[0]?.image || FALLBACK_IMAGE}
+      style={styles.filterCardImage}
+    />
+    <Text style={styles.filterCardText}>Top Rating</Text>
+  </TouchableOpacity>
+
+  {/* Harga */}
+  <TouchableOpacity
+    style={[styles.filterCard, { marginRight: 12 }]}
+    onPress={() =>
+      navigation.navigate('TermurahScreen', {
+        data: wisataList,
+      })
+    }
+  >
+    <ImageWithFallback
+      uri={[...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0]?.image || FALLBACK_IMAGE}
+      style={styles.filterCardImage}
+    />
+    <Text style={styles.filterCardText}>Termurah</Text>
+  </TouchableOpacity>
+
+  {/* Kota */}
+  <TouchableOpacity
+    style={styles.filterCard}
+    onPress={() =>
+      navigation.navigate('KotaScreen', {
+        data: wisataList,
+      })
+    }
+  >
+    <ImageWithFallback
+      uri={[...wisataList].sort((a, b) => a.kota.localeCompare(b.kota))[0]?.image || FALLBACK_IMAGE}
+      style={styles.filterCardImage}
+    />
+    <Text style={styles.filterCardText}>Kota</Text>
+  </TouchableOpacity>
+</ScrollView>
+
   
-      {/* ðŸ“‹ FlatList Wisata Vertikal */}
-      {loading ? (
-        <ActivityIndicator size="large" color="#007bff" />
-      ) : (
-        <FlatList
-          data={filteredData}
-          keyExtractor={(item) => item.id?.toString()}
-          contentContainerStyle={{ paddingBottom: 80 }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              {/* Favorite Icon */}
-              <TouchableOpacity onPress={() => toggleFavorite(item.id)} style={styles.favoriteIcon}>
-                <Icon
-                  name={favoriteIds.includes(item.id) ? 'heart' : 'heart-o'}
-                  size={20}
-                  color="red"
-                />
-              </TouchableOpacity>
-          
-              <ImageWithFallback uri={item.image} style={styles.image} />
-              <View style={styles.cardContent}>
-                <View style={styles.info}>
-                  <Text style={styles.title}>{item.name}</Text>
-                  <Text style={styles.price}>
-                    Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
-                  </Text>
-                  <Text style={styles.subtitle}>
-                    {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
-                  </Text>
-                  <Text style={styles.category}>{item.category}</Text>
+       
+  
+        {/* 📃 Daftar Wisata Berdasarkan Kota */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#007bff" />
+        ) : (
+          <FlatList
+            data={filteredData}
+            keyExtractor={(item) => item.id?.toString()}
+            contentContainerStyle={{ paddingBottom: 80 }}
+            renderItem={({ item, index }) => {
+              const isFirstItem = index === 0;
+              const isNewCity =
+                isFirstItem || item.kota !== filteredData[index - 1].kota;
+  
+              return (
+                <View>
+                  {isNewCity && (
+                    <Text style={styles.cityHeader}>{item.kota}</Text>
+                  )}
+  
+                  <View style={styles.card}>
+                    {/* Favorite Icon */}
+                    <TouchableOpacity
+                      onPress={() => toggleFavorite(item.id)}
+                      style={styles.favoriteIcon}
+                    >
+                      <Icon
+                        name={favoriteIds.includes(item.id) ? 'heart' : 'heart-o'}
+                        size={20}
+                        color="red"
+                      />
+                    </TouchableOpacity>
+  
+                    <ImageWithFallback uri={item.image} style={styles.image} />
+                    <View style={styles.cardContent}>
+                      <View style={styles.info}>
+                        <Text style={styles.title}>{item.name}</Text>
+                        <Text style={styles.price}>
+                          Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
+                        </Text>
+                        <Text style={styles.subtitle}>
+                          {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
+                        </Text>
+                        <Text style={styles.category}>{item.category}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('Detail', { wisata: item })}
+                        style={styles.detailButton}
+                      >
+                        <Text style={styles.detailButtonText}>Detail</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Detail', { wisata: item })}
-                  style={styles.detailButton}
-                >
-                  <Text style={styles.detailButtonText}>Detail</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-          
-          
-        />
-      )}
-    </>
-  );
+              );
+            }}
+          />
+        )}
+      </>
+    );
+  };
+  
   
 
   const renderMyOrder = () => (
@@ -344,7 +440,7 @@ export default function HomeScreen({ navigation }) {
                 style={[styles.qrButton, { backgroundColor: 'orange', marginTop: 8 }]}
                 onPress={() => navigation.navigate('PesanTiketScreen', { wisata: { id: order.id_wisata } })}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>âœ”ï¸ Selesaikan Pemesanan</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}> Selesaikan Pemesanan</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -398,9 +494,20 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f2f2f2' },
-  container: { flex: 1, paddingHorizontal: 12 },
-  header: { fontSize: 24, fontWeight: 'bold', marginVertical: 12, textAlign: 'center' },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f2f2f2',
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginVertical: 12,
+    textAlign: 'center',
+  },
   search: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -418,29 +525,65 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 4,
-
   },
-  image: { width: '100%', height: 180, backgroundColor: '#ddd' },
+  image: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#ddd',
+  },
   cardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 12,
   },
-  info: { flex: 1, paddingRight: 10 },
-  title: { fontSize: 20, fontWeight: 'bold' },
-  subtitle: { color: '#666', marginTop: 4 },
-  category: { marginTop: 6, fontStyle: 'italic', color: '#007bff' },
+  info: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    color: '#666',
+    marginTop: 4,
+  },
+  category: {
+    marginTop: 6,
+    fontStyle: 'italic',
+    color: '#007bff',
+  },
+  price: {
+    marginTop: 4,
+    color: 'green',
+    fontWeight: 'bold',
+  },
   detailButton: {
     backgroundColor: '#007bff',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 10,
   },
-  detailButtonText: { color: '#fff', fontWeight: 'bold' },
-  label: { fontWeight: 'bold', color: '#555' },
-  value: { fontSize: 16, marginBottom: 5 },
-  empty: { textAlign: 'center', color: '#888', marginTop: 40 },
+  detailButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  label: {
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  value: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  empty: {
+    textAlign: 'center',
+    color: '#888',
+    marginTop: 40,
+  },
+
+  // Tab Bar
   tabBar: {
     position: 'absolute',
     bottom: 0,
@@ -453,9 +596,18 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
-  tabItem: { alignItems: 'center', flex: 1 },
-  tabIcon: { marginBottom: 2 },
-  tabLabel: { color: '#fff', fontSize: 12, marginTop: 2 },
+  tabItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  tabIcon: {
+    marginBottom: 2,
+  },
+  tabLabel: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 2,
+  },
   tabIndicator: {
     height: 4,
     backgroundColor: '#fff',
@@ -464,6 +616,8 @@ const styles = StyleSheet.create({
     width: '50%',
     alignSelf: 'center',
   },
+
+  // QR Code
   qrButton: {
     marginTop: 10,
     backgroundColor: 'green',
@@ -496,11 +650,8 @@ const styles = StyleSheet.create({
   qrClose: {
     marginTop: 10,
   },
-  price: {
-    marginTop: 4,
-    color: 'green',
-    fontWeight: 'bold',
-  },
+
+  // Filters
   filterSlider: {
     flexDirection: 'row',
     marginTop: 12,
@@ -523,11 +674,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+
+  // Slider & Cards
   sliderTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
+    paddingHorizontal: 12,
   },
   sliderContainer: {
     flexDirection: 'row',
@@ -555,6 +709,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
+  detail: {
+    paddingHorizontal: 8,
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+  },
   favoriteIcon: {
     position: 'absolute',
     top: 12,
@@ -565,6 +725,23 @@ const styles = StyleSheet.create({
     elevation: 3,
     zIndex: 10,
   },
-  
 
+  // Filter Card
+  filterCard: {
+    width: 140,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  filterCardImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#ccc',
+  },
+  filterCardText: {
+    padding: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
 });

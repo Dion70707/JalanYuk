@@ -26,6 +26,8 @@ import ProfileScreen from './screens/ProfileScreen';
 import PemesananScreen from './screens/PesanTiketScreen';
 import MyOrder from './screens/MyOrder';
 import FavoritScreen from './screens/FavoritScreen';
+import FilteredWisataScreen from './screens/FilteredWisataScreen';
+import TopRatingScreen from './screens/TopRatingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -174,9 +176,19 @@ export default function App() {
             component={FavoritScreen}
             options={{ headerBackVisible: false }}
           />
+          <Stack.Screen
+            name="FilteredWisataScreen"
+            component={FilteredWisataScreen}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="TopRatingScreen"
+            component={TopRatingScreen}
+            options={{ headerBackVisible: false }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
 
     </View>
   );
-}
+} 
