@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { getAllWisata } from '../API';
 import ImageWithFallback from '../components/ImageWithFallback';
 
-const IMAGE_BASE_URL = 'http://192.168.136.125:8080';
+const IMAGE_BASE_URL = 'http://10.1.49.74:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
 
 const TABS = [
@@ -28,13 +28,14 @@ export default function FavoritScreen({ navigation }) {
   const [wisataList, setWisataList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      await loadFavorites();
-      await fetchWisataData();
-    };
-    load();
-  }, []);
+ useEffect(() => {
+  const unsubscribe = navigation.addListener('focus', () => {
+    loadFavorites();
+    fetchWisataData();
+  });
+  return unsubscribe;
+}, [navigation]);
+
 
   const handleTabPress = (tabKey) => {
     if (tabKey === 'Favorit') return;
@@ -42,92 +43,143 @@ export default function FavoritScreen({ navigation }) {
   };
 
   const loadFavorites = async () => {
-    const fav = await AsyncStorage.getItem('favoriteWisata');
-    if (fav) setFavoriteIds(JSON.parse(fav));
-  };
+  try {
+    const userId = await AsyncStorage.getItem('userId');
+    if (!userId) return;
 
-  const fetchWisataData = async () => {
-    try {
-      const response = await getAllWisata();
-      const data = Array.isArray(response) ? response : [];
+    const res = await fetch(`http://10.1.49.74:8080/TrsFavorit/aktif/${userId}`);
+    const data = await res.json();
 
-      const mappedData = data.map((item) => ({
-        id: item.id,
-        name: item.nama_wisata || 'Tanpa Nama',
-        location: item.alamat || 'Alamat tidak tersedia',
-        rating: item.rating_rata ?? 0,
-        reviewCount: item.jumlah_review ?? 0,
-        category: item.kategori || 'Kategori tidak tersedia',
-        image: item.id_galeri
-          ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
-          : FALLBACK_IMAGE,
-        ticketPrice: item.harga_tiket || 0,
-      }));
+    const ids = data.map(item => item.idWisata); // ambil hanya ID wisata
+    setFavoriteIds(ids);
+  } catch (err) {
+    console.error('Gagal mengambil favorit:', err);
+  }
+};
+const fetchWisataData = async () => {
+  try {
+    const response = await getAllWisata();
+    const data = Array.isArray(response) ? response : [];
 
-      setWisataList(mappedData);
-    } catch (err) {
-      console.error('Gagal memuat wisata:', err);
-    } finally {
-      setLoading(false);
+    const mappedData = data.map((item) => ({
+      id: item.id,
+      name: item.nama_wisata || 'Tanpa Nama',
+      location: item.alamat || 'Alamat tidak tersedia',
+      rating: item.rating_rata ?? 0,
+      reviewCount: item.jumlah_review ?? 0,
+      category: item.kategori || 'Kategori tidak tersedia',
+      image: item.id_galeri
+        ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
+        : FALLBACK_IMAGE,
+      ticketPrice: item.harga_tiket || 0,
+    }));
+
+    setWisataList(mappedData);
+  } catch (err) {
+    console.error('Gagal memuat wisata:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+ const toggleFavorite = async (idWisata) => {
+  try {
+    const userId = await AsyncStorage.getItem('userId');
+    if (!userId) return;
+
+    // Cek apakah wisata ini sudah difavoritkan
+    const res = await fetch(`http://10.1.49.74:8080/TrsFavorit/aktif/${userId}`);
+    const data = await res.json();
+    const existing = data.find(item => item.idWisata === idWisata);
+
+    if (existing) {
+      const updatedStatus = existing.favorit === 1 ? 0 : 1;
+      await fetch('http://10.1.49.74:8080/TrsFavorit', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idPengguna: parseInt(userId),
+          idWisata: idWisata,
+          favorit: updatedStatus,
+        }),
+      });
+    } else {
+      await fetch('http://10.1.49.74:8080/TrsFavorit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idPengguna: parseInt(userId),
+          idWisata: idWisata,
+          favorit: 1,
+        }),
+      });
     }
-  };
 
-  const toggleFavorite = async (id) => {
-    const updatedFavorites = favoriteIds.includes(id)
-      ? favoriteIds.filter((favId) => favId !== id)
-      : [...favoriteIds, id];
+    await loadFavorites(); // refresh list favorit
+  } catch (err) {
+    console.error('Gagal toggle favorit:', err);
+  }
+};
 
-    setFavoriteIds(updatedFavorites);
-    await AsyncStorage.setItem('favoriteWisata', JSON.stringify(updatedFavorites));
-  };
 
   const favoriteWisata = wisataList.filter((item) =>
     favoriteIds.includes(item.id)
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Wisata Favorit</Text>
+      <View style={styles.container}>
+        <Text style={styles.header}>Wisata Favorit</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#007bff" />
-      ) : favoriteWisata.length === 0 ? (
-        <Text style={styles.empty}>Belum ada wisata favorit.</Text>
-      ) : (
-        <FlatList
-          data={favoriteWisata}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <TouchableOpacity
-                onPress={() => toggleFavorite(item.id)}
-                style={styles.favoriteIcon}
-              >
-                <Icon
-                  name={favoriteIds.includes(item.id) ? 'heart' : 'heart-o'}
-                  size={20}
-                  color="red"
-                />
-              </TouchableOpacity>
+        {loading ? (
+          <ActivityIndicator size="large" color="#007bff" />
+        ) : favoriteWisata.length === 0 ? (
+          <Text style={styles.empty}>Belum ada wisata favorit.</Text>
+        ) : (
+          <FlatList
+            data={favoriteWisata}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                
 
-              <ImageWithFallback uri={item.image} style={styles.image} />
-              <View style={styles.cardContent}>
-                <View style={styles.info}>
-                  <Text style={styles.title}>{item.name}</Text>
-                  <Text style={styles.subtitle}>
-                    {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
-                  </Text>
-                  <Text style={styles.category}>{item.category}</Text>
+                <ImageWithFallback uri={item.image} style={styles.image} />
+                <View style={styles.cardContent}>
+                  <View style={styles.info}>
+                    <Text style={styles.title}>{item.name}</Text>
+                    <Text style={styles.subtitle}>
+                      {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
+                    </Text>
+                    <Text style={styles.category}>{item.category}</Text>
+                  </View>
+
+                 {/* Love icon + Tombol Detail dalam satu baris */}
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      onPress={() => toggleFavorite(item.id)}
+                      style={styles.favoriteIconInline}
+                    >
+                      <Icon
+                        name={favoriteIds.includes(item.id) ? 'heart' : 'heart-o'}
+                        size={20}
+                        color="red"
+                      />
+                    </TouchableOpacity>
+
+
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Detail', { wisata: item })}
+                    style={styles.detailButton}
+                  >
+                    <Text style={styles.detailButtonText}>Detail</Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Detail', { wisata: item })}
-                  style={styles.detailButton}
-                >
-                  <Text style={styles.detailButtonText}>Detail</Text>
-                </TouchableOpacity>
               </View>
-            </View>
+              </View>
           )}
         />
       )}
@@ -186,13 +238,9 @@ const styles = StyleSheet.create({
   detailButtonText: { color: '#fff', fontWeight: 'bold' },
   favoriteIcon: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#fff',
-    padding: 6,
-    borderRadius: 20,
+    top: 12,
+    right: 12,
     zIndex: 10,
-    elevation: 3,
   },
 
   // Tab Bar Styles
@@ -219,4 +267,15 @@ const styles = StyleSheet.create({
     width: '50%',
     alignSelf: 'center',
   },
+  actionRow: {
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+  marginTop: 10,
+},
+
+favoriteIconInline: {
+  marginRight: 10,
+},
+
 });

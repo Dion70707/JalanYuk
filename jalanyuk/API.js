@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.136.125:8080';
+const BASE_URL = 'http://10.1.49.74:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -10,6 +10,12 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+// 🔽 FAVORIT APIs
+export const getFavoritList = () => api.get('/TrsFavorit');
+
+export const addFavorit = (payload) => api.post('/TrsFavorit', payload);
+
+export const softDeleteFavorit = (payload) => api.put('/TrsFavorit', payload);
 
 export async function getAllReviews() {
   try {
@@ -297,7 +303,7 @@ export const togglePenggunaStatus = async (id, status) => {
 
 const handleSelesaikanPemesanan = async (order) => {
   try {
-    const response = await axios.put('http://192.168.136.125:8080/trspemesanan', {
+    const response = await axios.put('http://10.1.49.74:8080/trspemesanan', {
       ...order,
       status: 'Selesai', // opsional, karena backend juga override
     });
@@ -336,7 +342,7 @@ export const postPemesanan = async (payload) => {
 
 const fetchTransaksiById = async (id) => {
   try {
-    const response = await axios.get(`http://192.168.136.125:8080/trspemesanan?id=${id}`);
+    const response = await axios.get(`http://10.1.49.74:8080/trspemesanan?id=${id}`);
     return response.data; // diasumsikan backend mengembalikan objek TrsPemesanan
   } catch (error) {
     console.error('Gagal ambil data transaksi:', error);

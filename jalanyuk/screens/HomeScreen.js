@@ -16,14 +16,15 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { getAllWisata, getAllPemesanan } from '../API';
+import { getAllWisata, getAllPemesanan,getFavoritList, addFavorit, softDeleteFavorit } from '../API';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 
-const IMAGE_BASE_URL = 'http://192.168.136.125:8080';
-const FALLBACK_IMAGE = 'http://192.168.136.125:8080';
+
+const IMAGE_BASE_URL = 'http://10.1.49.74:8080';
+const FALLBACK_IMAGE = 'http://10.1.49.74:8080';
 
 
 const ImageWithFallback = ({ uri, style }) => {
@@ -58,7 +59,8 @@ export default function HomeScreen({ navigation }) {
   const [selectedQRData, setSelectedQRData] = useState(null);
   const qrRef = useRef();
   const [activeFilter, setActiveFilter] = useState('Semua');
-  const [favoriteIds, setFavoriteIds] = useState([]);
+  const [favoritData, setFavoritData] = useState([]);
+
 
   const fetchWisataData = async () => {
     try {
@@ -141,18 +143,92 @@ export default function HomeScreen({ navigation }) {
 
   }, []);
   const loadFavorites = async () => {
-    const fav = await AsyncStorage.getItem('favoriteWisata');
-    if (fav) setFavoriteIds(JSON.parse(fav));
-  };
+  try {
+    const res = await getFavoritList();
+    const userId = await AsyncStorage.getItem('userId');
+    if (!userId) return;
+    console.log(res.data)
+
+    const data = res.data || [];
+
+    const userFavorit = data.filter(item => item.idPengguna === parseInt(userId));
+    
+    console.log("🔥 favoritData setelah load:", userFavorit);
+setFavoritData(userFavorit);
+
+  } catch (error) {
+    console.error('Gagal mengambil data favorit:', error);
+  }
+};
+
+
+const getFavoritByWisataId = (idWisata) => {
+  if (!favoritData || !Array.isArray(favoritData)) {
+    console.warn('❌ favoritData belum tersedia atau bukan array.');
+    return null;
+  }
+
+  if (!user?.id) {
+    console.warn('❌ ID user tidak ditemukan.');
+    return null;
+  }
+
+  console.log(favoritData)
   
-  const toggleFavorite = async (id) => {
-    const updatedFavorites = favoriteIds.includes(id)
-      ? favoriteIds.filter((favId) => favId !== id)
-      : [...favoriteIds, id];
-  
-    setFavoriteIds(updatedFavorites);
-    await AsyncStorage.setItem('favoriteWisata', JSON.stringify(updatedFavorites));
-  };
+
+  const result = favoritData.find(
+    (item) => item.idWisata === idWisata && item.idPengguna === user.id
+  );
+
+
+  console.log(`🔍 Cek favorit untuk wisata ${idWisata} oleh user ${user.id}:`, result);
+  return result;
+};
+
+
+  const toggleFavorite = async (idWisata) => {
+  const userId = user?.id;
+  if (!userId) return;
+
+  const existing = getFavoritByWisataId(idWisata);
+
+   try {
+    if (existing) {
+      const updatedStatus = existing.favorit === 1 ? 0 : 1;
+
+      await fetch('http://10.1.49.74:8080/TrsFavorit', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idPengguna: userId,
+          idWisata: idWisata,
+          favorit: updatedStatus,
+        }),
+      });
+    } else {
+      await fetch('http://10.1.49.74:8080/TrsFavorit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idPengguna: userId,
+          idWisata: idWisata,
+          favorit: 1,
+        }),
+      });
+    }
+
+    await loadFavorites(); // refresh ulang setelah update
+  } catch (err) {
+    console.error('Gagal mengubah status favorit:', err);
+    Alert.alert('Error', 'Terjadi kesalahan saat mengubah favorit.');
+  }
+};
+
+
 
   const filteredData = wisataList
   .filter((item) =>
@@ -343,19 +419,6 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.cityHeader}>{item.kota}</Text>
                   )}
   
-                  <View style={styles.card}>
-                    {/* Favorite Icon */}
-                    <TouchableOpacity
-                      onPress={() => toggleFavorite(item.id)}
-                      style={styles.favoriteIcon}
-                    >
-                      <Icon
-                        name={favoriteIds.includes(item.id) ? 'heart' : 'heart-o'}
-                        size={20}
-                        color="red"
-                      />
-                    </TouchableOpacity>
-  
                     <ImageWithFallback uri={item.image} style={styles.image} />
                     <View style={styles.cardContent}>
                       <View style={styles.info}>
@@ -368,6 +431,26 @@ export default function HomeScreen({ navigation }) {
                         </Text>
                         <Text style={styles.category}>{item.category}</Text>
                       </View>
+
+                      {/* Wrapper untuk tombol dan ikon love */}
+                        <View style={styles.actionRow}>
+                          {/* Favorite Icon di kiri */}
+                          <TouchableOpacity
+                            onPress={() => toggleFavorite(item.id)}
+                            style={styles.favoriteIconInline}
+                          >
+                            <Icon
+                              name={
+                                getFavoritByWisataId(item.id)?.favorit === 1
+                                  ? 'heart'
+                                  : 'heart-o'
+                              }
+                              size={20}
+                              color="red"
+                            />
+                          </TouchableOpacity>
+
+
                       <TouchableOpacity
                         onPress={() => navigation.navigate('Detail', { wisata: item })}
                         style={styles.detailButton}
@@ -376,6 +459,7 @@ export default function HomeScreen({ navigation }) {
                       </TouchableOpacity>
                     </View>
                   </View>
+                  
                 </View>
               );
             }}
@@ -719,10 +803,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#fff',
-    padding: 6,
-    borderRadius: 20,
-    elevation: 3,
     zIndex: 10,
   },
 
@@ -744,4 +824,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
+  actionRow: {
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+  marginTop: 10,
+},
+
+favoriteIconInline: {
+  marginRight: 10,
+},
+
 });
