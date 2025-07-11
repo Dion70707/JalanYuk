@@ -26,6 +26,8 @@ export default function PemesananScreen({ route }) {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [showQR, setShowQR] = useState(false);
+  const [loadingSelesai, setLoadingSelesai] = useState(false);
+
   const strukRef = useRef();
   const [transaksiData, setTransaksiData] = useState(null);
   const qrRef = useRef();
@@ -255,7 +257,7 @@ export default function PemesananScreen({ route }) {
   const handleSelesaikan = async () => {
     console.log('✔️ Tombol Selesaikan ditekan');
 
-    if (!transaksiData || !transaksiData.id || transaksiData.id === 0) {
+    if (!transaksiData?.id || transaksiData.id === 0) {
       console.log('❌ Data transaksi tidak valid:', transaksiData);
       Alert.alert('Error', 'Data transaksi tidak valid. Tidak dapat menyelesaikan pemesanan.');
       return;
@@ -264,39 +266,38 @@ export default function PemesananScreen({ route }) {
     try {
       setLoading(true);
 
-      // Ambil data transaksi dari backend berdasarkan ID
-      const fullTransaksi = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${transaksiData.id}`);
-      const existingData = fullTransaksi?.data;
+      // Ambil data transaksi terbaru dari backend
+      const { data: existingData } = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${transaksiData.id}`);
 
-      if (!existingData || !existingData.id) {
+      if (!existingData?.id) {
+        console.log('❌ Transaksi tidak ditemukan:', existingData);
         Alert.alert('Error', 'Transaksi tidak ditemukan di server.');
         return;
       }
 
-      // Update hanya status menjadi "Selesai"
+      // Siapkan payload update status
       const updatePayload = {
         ...existingData,
         status: "Selesai",
       };
 
-      console.log('🚀 Mengirim update PUT:', updatePayload);
+      console.log('🚀 Mengirim permintaan update status:', updatePayload);
 
-      const response = await axios.put('http://172.20.10.3:8080/trspemesanan', updatePayload);
+      const { data: response } = await axios.put('http://172.20.10.3:8080/trspemesanan', updatePayload);
 
-      console.log('✅ Respon dari backend:', response.data);
-
-      if (response?.data?.result === 200) {
+      if (response?.result === 200) {
+        console.log('✅ Status berhasil diperbarui:', response);
         Alert.alert('✅ Berhasil', 'Pemesanan telah diselesaikan!');
         setTransaksiData(prev => ({ ...prev, status: 'Selesai' }));
       } else {
-        Alert.alert('❌ Gagal', response?.data?.message || 'Gagal menyelesaikan pemesanan.');
+        console.log('❌ Gagal memperbarui status:', response);
+        Alert.alert('❌ Gagal', response?.message || 'Gagal menyelesaikan pemesanan.');
       }
 
     } catch (err) {
-      console.error('Terjadi error saat menyelesaikan pemesanan:', err);
-      if (err.response) {
-        console.error('Respon error dari backend:', err.response.data);
-        Alert.alert('❌ Error', err.response.data?.message || 'Terjadi kesalahan pada server.');
+      console.error('❌ Terjadi error saat menyelesaikan pemesanan:', err);
+      if (err.response?.data) {
+        Alert.alert('❌ Error', err.response.data.message || 'Terjadi kesalahan dari server.');
       } else {
         Alert.alert('❌ Error', 'Tidak dapat menghubungi server.');
       }
@@ -304,6 +305,7 @@ export default function PemesananScreen({ route }) {
       setLoading(false);
     }
   };
+
 
 
 
@@ -424,8 +426,15 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
 
                 <View style={styles.strukRow}>
                   <Text style={styles.strukLabel}>Tanggal</Text>
-                  <Text style={styles.strukValue}>{transaksiData.tanggal_pemesanan}</Text>
+                  <Text style={styles.strukValue}>
+                    {new Date(transaksiData.tanggal_pemesanan).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </Text>
                 </View>
+
 
                 <View style={styles.strukRow}>
                   <Text style={styles.strukLabel}>Status</Text>
@@ -442,7 +451,7 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
                 </View>
               </View>
 
-              
+
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: 'green', marginTop: 20 }]}
                 onPress={simpanStrukKeGaleri}
@@ -453,15 +462,20 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
             </>
           )}
 
-          {/* Tombol konfirmasi hanya muncul jika status masih Pending */}
           {transaksiData.status === 'Pending' && (
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: 'orange', marginTop: 20 }]}
-              onPress={handleSelesaikan}
-            >
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: 'orange', marginTop: 20 }]}
+            onPress={handleSelesaikan}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
               <Text style={styles.buttonText}>Konfirmasi Pemesanan</Text>
-            </TouchableOpacity>
+            )}
+          </TouchableOpacity>
           )}
+
         </View>
 
       )}
