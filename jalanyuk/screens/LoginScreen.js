@@ -104,7 +104,7 @@ const LoginScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
-            {/* Language Buttons */}
+        
             <View style={styles.languageSelector}>
               <TouchableOpacity
                 onPress={() => changeLanguage('id')}

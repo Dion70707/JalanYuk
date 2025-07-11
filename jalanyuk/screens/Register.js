@@ -97,7 +97,7 @@ const RegisterScreen = ({ navigation }) => {
               style={styles.input}
               value={nama}
               onChangeText={setNama}
-              placeholder="Enter full name"
+              placeholder={i18n.t('enterFullName')}
             />
 
             <Text style={styles.label}>{i18n.t('email')}</Text>
