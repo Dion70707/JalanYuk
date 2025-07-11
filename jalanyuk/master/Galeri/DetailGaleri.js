@@ -18,7 +18,7 @@ import { getGaleriById, updateGaleri } from '../../API';
 import { launchImageLibrary } from 'react-native-image-picker';
 
 // Ganti sesuai IP lokal server kamu
-const IMAGE_BASE_URL = '192.168.43.81:8080';
+const IMAGE_BASE_URL = '172.20.10.9:8080';
 
 const DetailGaleri = () => {
   const route = useRoute();

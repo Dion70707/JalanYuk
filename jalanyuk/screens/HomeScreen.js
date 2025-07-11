@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+// HomeScreen.js
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,19 +15,26 @@ import {
   RefreshControl,
   Alert,
   Modal,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { getAllWisata, getAllPemesanan,getFavoritList, addFavorit, softDeleteFavorit } from '../API';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import QRCode from 'react-native-qrcode-svg';
-import { captureRef } from 'react-native-view-shot';
-import * as MediaLibrary from 'expo-media-library';
+} from "react-native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import { getAllWisata, getAllPemesanan, getFavoritList } from "../API";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import QRCode from "react-native-qrcode-svg";
+import { captureRef } from "react-native-view-shot";
+import * as MediaLibrary from "expo-media-library";
 
+/* ──────────────────────────── CONSTANTS ──────────────────────────── */
+const IMAGE_BASE_URL = "http://172.20.10.9:8080";
+const FALLBACK_IMAGE = "https://via.placeholder.com/400x200.png?text=No+Image";
 
-const IMAGE_BASE_URL = 'http://10.1.49.74:8080';
-const FALLBACK_IMAGE = 'http://10.1.49.74:8080';
+const TABS = [
+  { key: "Beranda", label: "Beranda", icon: "home" },
+  { key: "MyOrder", label: "My Order", icon: "ticket" },
+  { key: "Favorit", label: "Favorit", icon: "heart" },
+  { key: "Profile", label: "Profile", icon: "user" },
+];
 
-
+/* ────────────────────────────── HELPER ───────────────────────────── */
 const ImageWithFallback = ({ uri, style }) => {
   const [error, setError] = useState(false);
   return (
@@ -39,65 +47,57 @@ const ImageWithFallback = ({ uri, style }) => {
   );
 };
 
-const TABS = [
-  { key: 'Beranda', label: 'Beranda', icon: 'home' },
-  { key: 'MyOrder', label: 'My Order', icon: 'ticket' },
-  { key: 'Favorit', label: 'Favorit', icon: 'heart' },
-  { key: 'Profile', label: 'Profile', icon: 'user' },
-];
-
+/* ──────────────────────────── COMPONENT ──────────────────────────── */
 export default function HomeScreen({ navigation }) {
-  const [search, setSearch] = useState('');
-  const [selectedTab, setSelectedTab] = useState('Beranda');
+  /* ---------- STATE ---------- */
+  const [search, setSearch] = useState("");
+  const [selectedTab, setSelectedTab] = useState("Beranda");
   const [wisataList, setWisataList] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [orders, setOrders] = useState([]);
   const [orderLoading, setOrderLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
   const [user, setUser] = useState(null);
+
+  const [favoritData, setFavoritData] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("Semua");
+
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedQRData, setSelectedQRData] = useState(null);
   const qrRef = useRef();
-  const [activeFilter, setActiveFilter] = useState('Semua');
-  const [favoritData, setFavoritData] = useState([]);
 
-
+  /* ---------- DATA FETCHERS ---------- */
   const fetchWisataData = async () => {
     try {
       setLoading(true);
       const response = await getAllWisata();
       const data = Array.isArray(response) ? response : [];
 
-      const mappedData = await Promise.all(
-        data.map((item) => {
-          const imageUrl = item.id_galeri
+      const mapped = data.map((item) => {
+        const kota = item.alamat?.split(",").pop()?.trim() || "Tidak Diketahui";
+        return {
+          id: item.id,
+          name: item.nama_wisata || "Tanpa Nama",
+          location: item.alamat || "Alamat tidak tersedia",
+          rating: item.rating_rata ?? 0,
+          reviewCount: item.jumlah_review ?? 0,
+          category: item.kategori || "Kategori tidak tersedia",
+          description: item.deskripsi || "",
+          image: item.id_galeri
             ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
-            : FALLBACK_IMAGE;
-      
-          // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
-          const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
-      
-          return {
-            id: item.id,
-            name: item.nama_wisata || 'Tanpa Nama',
-            location: item.alamat || 'Alamat tidak tersedia',
-            rating: item.rating_rata ?? 0,
-            reviewCount: item.jumlah_review ?? 0,
-            category: item.kategori || 'Kategori tidak tersedia',
-            description: item.deskripsi || '',
-            image: imageUrl,
-            latitude: parseFloat(item.koordinat_lat) || 0,
-            longitude: parseFloat(item.koordinat_lng) || 0,
-            ticketPrice: item.harga_tiket || 0,
-            kota: kota,
-          };
-        })
-      );
-      
+            : FALLBACK_IMAGE,
+          latitude: parseFloat(item.koordinat_lat) || 0,
+          longitude: parseFloat(item.koordinat_lng) || 0,
+          ticketPrice: item.harga_tiket || 0,
+          kota,
+        };
+      });
 
-      setWisataList(mappedData);
-    } catch (error) {
-      console.error('Gagal memuat data wisata:', error);
+      setWisataList(mapped);
+    } catch (e) {
+      console.error("Gagal memuat data wisata:", e);
     } finally {
       setLoading(false);
     }
@@ -106,8 +106,8 @@ export default function HomeScreen({ navigation }) {
   const fetchMyOrders = async () => {
     try {
       setOrderLoading(true);
-      const userId = await AsyncStorage.getItem('userId');
-      const nama = await AsyncStorage.getItem('userNamaLengkap');
+      const userId = await AsyncStorage.getItem("userId");
+      const nama = await AsyncStorage.getItem("userNamaLengkap");
       if (!userId) return;
 
       setUser({ id: parseInt(userId), nama_lengkap: nama });
@@ -118,198 +118,137 @@ export default function HomeScreen({ navigation }) {
       ]);
 
       const filtered = allOrders
-        .filter((order) => order.id_pengguna === parseInt(userId))
-        .map((order) => {
-          const matchedWisata = allWisata.find((w) => w.id === order.id_wisata);
+        .filter((o) => o.id_pengguna === parseInt(userId))
+        .map((o) => {
+          const w = allWisata.find((w) => w.id === o.id_wisata);
           return {
-            ...order,
-            nama_wisata: matchedWisata?.nama_wisata || 'Wisata tidak ditemukan',
+            ...o,
+            nama_wisata: w?.nama_wisata || "Wisata tidak ditemukan",
           };
         });
 
       setOrders(filtered);
-    } catch (err) {
-      console.error('Gagal mengambil data pesanan:', err);
+    } catch (e) {
+      console.error("Gagal mengambil data pesanan:", e);
     } finally {
       setOrderLoading(false);
       setRefreshing(false);
     }
   };
 
+  const loadFavorites = async () => {
+    try {
+      const res = await getFavoritList();
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) return;
+
+      const data = res.data || [];
+      const userFav = data.filter((d) => d.idPengguna === parseInt(userId));
+      setFavoritData(userFav);
+    } catch (e) {
+      console.error("Gagal mengambil data favorit:", e);
+    }
+  };
+
+  /* ---------- FAVORIT UTIL ---------- */
+  const getFavoritByWisataId = (idWisata) =>
+    favoritData.find(
+      (f) => f.idWisata === idWisata && f.idPengguna === user?.id
+    );
+
+  const toggleFavorite = async (idWisata) => {
+    const userId = await AsyncStorage.getItem("userId");
+    if (!userId) return;
+
+    // dapatkan status terkini langsung dari state, tidak perlu fetch lagi
+    const existing = favoritData.find((f) => f.idWisata === idWisata);
+    const newStatus = existing?.favorit === 1 ? 0 : 1;
+
+    try {
+      await toggleFavoritAPI({
+        userId: parseInt(userId),
+        idWisata,
+        favorit: newStatus,
+      });
+      await loadFavorites(); // refresh state
+    } catch (e) {
+      console.error("Toggle favorit error:", e);
+    }
+  };
+
+  /* ---------- EFFECTS ---------- */
   useEffect(() => {
     fetchWisataData();
     fetchMyOrders();
     loadFavorites();
-
   }, []);
-  const loadFavorites = async () => {
-  try {
-    const res = await getFavoritList();
-    const userId = await AsyncStorage.getItem('userId');
-    if (!userId) return;
-    console.log(res.data)
 
-    const data = res.data || [];
-
-    const userFavorit = data.filter(item => item.idPengguna === parseInt(userId));
-    
-    console.log("🔥 favoritData setelah load:", userFavorit);
-setFavoritData(userFavorit);
-
-  } catch (error) {
-    console.error('Gagal mengambil data favorit:', error);
-  }
-};
-
-
-const getFavoritByWisataId = (idWisata) => {
-  if (!favoritData || !Array.isArray(favoritData)) {
-    console.warn('❌ favoritData belum tersedia atau bukan array.');
-    return null;
-  }
-
-  if (!user?.id) {
-    console.warn('❌ ID user tidak ditemukan.');
-    return null;
-  }
-
-  console.log(favoritData)
-  
-
-  const result = favoritData.find(
-    (item) => item.idWisata === idWisata && item.idPengguna === user.id
-  );
-
-
-  console.log(`🔍 Cek favorit untuk wisata ${idWisata} oleh user ${user.id}:`, result);
-  return result;
-};
-
-
-  const toggleFavorite = async (idWisata) => {
-  const userId = user?.id;
-  if (!userId) return;
-
-  const existing = getFavoritByWisataId(idWisata);
-
-   try {
-    if (existing) {
-      const updatedStatus = existing.favorit === 1 ? 0 : 1;
-
-      await fetch('http://10.1.49.74:8080/TrsFavorit', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          idPengguna: userId,
-          idWisata: idWisata,
-          favorit: updatedStatus,
-        }),
-      });
-    } else {
-      await fetch('http://10.1.49.74:8080/TrsFavorit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          idPengguna: userId,
-          idWisata: idWisata,
-          favorit: 1,
-        }),
-      });
+  /* refresh favorit setiap kali user membuka tab Favorit */
+  useEffect(() => {
+    if (selectedTab === "Favorit") {
+      loadFavorites();
     }
+  }, [selectedTab]);
 
-    await loadFavorites(); // refresh ulang setelah update
-  } catch (err) {
-    console.error('Gagal mengubah status favorit:', err);
-    Alert.alert('Error', 'Terjadi kesalahan saat mengubah favorit.');
-  }
-};
-
-
-
-  const filteredData = wisataList
-  .filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
-  )
-  .sort((a, b) => {
-    const kotaA = a.kota.toLowerCase();
-    const kotaB = b.kota.toLowerCase();
-
-    if (kotaA < kotaB) return -1;
-    if (kotaA > kotaB) return 1;
-
-    // Jika kota sama, urutkan berdasarkan nama wisata
-    return a.name.localeCompare(b.name);
-  });
-
-
-
+  /* ---------- TAB HANDLER ---------- */
   const handleTabPress = (tabKey) => {
-    setSelectedTab(tabKey);
-    if (tabKey === 'Favorit') navigation.navigate('FavoritScreen');
-    else if (tabKey === 'Profile') navigation.navigate('Profile');
+    if (tabKey === "Profile") {
+      navigation.navigate("Profile");
+    } else {
+      setSelectedTab(tabKey);
+    }
   };
-  
 
-  const renderQRString = (order) => {
-    return `Nama: ${user?.nama_lengkap}\nWisata: ${order.nama_wisata}\nJumlah: ${order.jumlah_tiket}\nTotal: Rp${order.total_harga}\nTanggal: ${order.tanggal_pemesanan}`;
-  };
+  /* ---------- QR HELPERS ---------- */
+  const renderQRString = (order) =>
+    `Nama: ${user?.nama_lengkap}
+Wisata: ${order.nama_wisata}
+Jumlah: ${order.jumlah_tiket}
+Total: Rp${order.total_harga}
+Tanggal: ${order.tanggal_pemesanan}`;
 
   const saveQRToGallery = async () => {
     try {
-      const permission = await MediaLibrary.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Izin Ditolak', 'Tidak dapat menyimpan gambar tanpa izin.');
+      const { granted } = await MediaLibrary.requestPermissionsAsync();
+      if (!granted) {
+        Alert.alert("Izin ditolak", "Tidak dapat menyimpan gambar tanpa izin.");
         return;
       }
-
-      const uri = await captureRef(qrRef, { format: 'png', quality: 1 });
+      const uri = await captureRef(qrRef, { format: "png", quality: 1 });
       const asset = await MediaLibrary.createAssetAsync(uri);
-      await MediaLibrary.createAlbumAsync('QR-Pemesanan', asset, false);
-
-      Alert.alert('Sukses', 'QR Code berhasil disimpan ke galeri!');
-    } catch (err) {
-      console.error('Gagal menyimpan QR:', err);
-      Alert.alert('Error', 'Gagal menyimpan QR.');
+      await MediaLibrary.createAlbumAsync("QR-Pemesanan", asset, false);
+      Alert.alert("Sukses", "QR Code berhasil disimpan ke galeri!");
+    } catch (e) {
+      console.error("Gagal menyimpan QR:", e);
+      Alert.alert("Error", "Gagal menyimpan QR.");
     }
   };
-  const filteredList = wisataList.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
-  );
-  
-  const sortedSliderList = [...filteredList].sort((a, b) => {
-    if (activeFilter === 'Rating') return b.rating - a.rating;
-    if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
-    return 0; // 'Semua'
-  });
-  
+
+  /* ──────────────────────── RENDERERS ──────────────────────── */
   const renderBeranda = () => {
-    const filteredData = wisataList
-      .filter((item) =>
-        item.name.toLowerCase().includes(search.toLowerCase())
-      )
+    const list = wisataList
+      .filter((w) => w.name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
-        const kotaA = (a.kota || '').toLowerCase();
-        const kotaB = (b.kota || '').toLowerCase();
-        if (kotaA < kotaB) return -1;
-        if (kotaA > kotaB) return 1;
-        return a.name.localeCompare(b.name);
+        const kotaA = (a.kota || "").toLowerCase();
+        const kotaB = (b.kota || "").toLowerCase();
+        return kotaA === kotaB
+          ? a.name.localeCompare(b.name)
+          : kotaA.localeCompare(kotaB);
       });
-  
-    const sortedSliderList = [...filteredData].sort((a, b) => {
-      if (activeFilter === 'Rating') return b.rating - a.rating;
-      if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
-      return 0;
-    });
-  
+
+    const applySliderSort = (arr) => {
+      if (activeFilter === "Rating")
+        return [...arr].sort((a, b) => b.rating - a.rating);
+      if (activeFilter === "Harga")
+        return [...arr].sort((a, b) => a.ticketPrice - b.ticketPrice);
+      return arr;
+    };
+
     return (
       <>
         <Text style={styles.header}>Wisata Indonesia</Text>
-  
-        {/* 🔍 Input Pencarian */}
+
+        {/* 🔍 Search */}
         <TextInput
           placeholder="Cari tempat wisata..."
           value={search}
@@ -317,149 +256,143 @@ const getFavoritByWisataId = (idWisata) => {
           style={styles.search}
           placeholderTextColor="#999"
         />
-  
-        {/* 🎛️ Filter Slider */}
+
+        {/* 🎚️ Filter Slider */}
         <View style={styles.filterSlider}>
-          {['Semua', 'Rating', 'Harga'].map((filter) => (
+          {["Semua", "Rating", "Harga"].map((f) => (
             <TouchableOpacity
-              key={filter}
-              onPress={() => setActiveFilter(filter)}
+              key={f}
+              onPress={() => setActiveFilter(f)}
               style={[
                 styles.filterButton,
-                activeFilter === filter && styles.filterButtonActive,
+                activeFilter === f && styles.filterButtonActive,
               ]}
             >
               <Text
                 style={[
                   styles.filterButtonText,
-                  activeFilter === filter && styles.filterButtonTextActive,
+                  activeFilter === f && styles.filterButtonTextActive,
                 ]}
               >
-                {filter}
+                {f}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-  
-        {/* 🖼️ Filter Cepat Slider */}
+
+        {/* 🖼️ Quick Slider */}
         <ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  style={{ marginBottom: 16 }}
-  contentContainerStyle={{ paddingHorizontal: 4 }}
->
-  {/* Rating */}
-  <TouchableOpacity
-    style={[styles.filterCard, { marginRight: 12 }]}
-    onPress={() =>
-      navigation.navigate('TopRatingScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => b.rating - a.rating)[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Top Rating</Text>
-  </TouchableOpacity>
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 16 }}
+          contentContainerStyle={{ paddingHorizontal: 4 }}
+        >
+          {/* Top Rating */}
+          <TouchableOpacity
+            style={[styles.filterCard, { marginRight: 12 }]}
+            onPress={() =>
+              navigation.navigate("TopRatingScreen", { data: wisataList })
+            }
+          >
+            <ImageWithFallback
+              uri={applySliderSort(wisataList)[0]?.image || FALLBACK_IMAGE}
+              style={styles.filterCardImage}
+            />
+            <Text style={styles.filterCardText}>Top Rating</Text>
+          </TouchableOpacity>
 
-  {/* Harga */}
-  <TouchableOpacity
-    style={[styles.filterCard, { marginRight: 12 }]}
-    onPress={() =>
-      navigation.navigate('TermurahScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Termurah</Text>
-  </TouchableOpacity>
+          {/* Termurah */}
+          <TouchableOpacity
+            style={[styles.filterCard, { marginRight: 12 }]}
+            onPress={() =>
+              navigation.navigate("TermurahScreen", { data: wisataList })
+            }
+          >
+            <ImageWithFallback
+              uri={
+                [...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0]
+                  ?.image || FALLBACK_IMAGE
+              }
+              style={styles.filterCardImage}
+            />
+            <Text style={styles.filterCardText}>Termurah</Text>
+          </TouchableOpacity>
 
-  {/* Kota */}
-  <TouchableOpacity
-    style={styles.filterCard}
-    onPress={() =>
-      navigation.navigate('KotaScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => a.kota.localeCompare(b.kota))[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Kota</Text>
-  </TouchableOpacity>
-</ScrollView>
+          {/* Kota */}
+          <TouchableOpacity
+            style={styles.filterCard}
+            onPress={() =>
+              navigation.navigate("KotaScreen", { data: wisataList })
+            }
+          >
+            <ImageWithFallback
+              uri={
+                [...wisataList].sort((a, b) => a.kota.localeCompare(b.kota))[0]
+                  ?.image || FALLBACK_IMAGE
+              }
+              style={styles.filterCardImage}
+            />
+            <Text style={styles.filterCardText}>Kota</Text>
+          </TouchableOpacity>
+        </ScrollView>
 
-  
-       
-  
-        {/* 📃 Daftar Wisata Berdasarkan Kota */}
+        {/* 📋 List */}
         {loading ? (
           <ActivityIndicator size="large" color="#007bff" />
         ) : (
           <FlatList
-            data={filteredData}
-            keyExtractor={(item) => item.id?.toString()}
+            data={list}
+            keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={{ paddingBottom: 80 }}
             renderItem={({ item, index }) => {
-              const isFirstItem = index === 0;
               const isNewCity =
-                isFirstItem || item.kota !== filteredData[index - 1].kota;
-  
+                index === 0 || item.kota !== list[index - 1].kota;
               return (
                 <View>
                   {isNewCity && (
                     <Text style={styles.cityHeader}>{item.kota}</Text>
                   )}
-  
-                    <ImageWithFallback uri={item.image} style={styles.image} />
-                    <View style={styles.cardContent}>
-                      <View style={styles.info}>
-                        <Text style={styles.title}>{item.name}</Text>
-                        <Text style={styles.price}>
-                          Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
-                        </Text>
-                        <Text style={styles.subtitle}>
-                          {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
-                        </Text>
-                        <Text style={styles.category}>{item.category}</Text>
-                      </View>
 
-                      {/* Wrapper untuk tombol dan ikon love */}
-                        <View style={styles.actionRow}>
-                          {/* Favorite Icon di kiri */}
-                          <TouchableOpacity
-                            onPress={() => toggleFavorite(item.id)}
-                            style={styles.favoriteIconInline}
-                          >
-                            <Icon
-                              name={
-                                getFavoritByWisataId(item.id)?.favorit === 1
-                                  ? 'heart'
-                                  : 'heart-o'
-                              }
-                              size={20}
-                              color="red"
-                            />
-                          </TouchableOpacity>
+                  <ImageWithFallback uri={item.image} style={styles.image} />
+                  <View style={styles.cardContent}>
+                    <View style={styles.info}>
+                      <Text style={styles.title}>{item.name}</Text>
+                      <Text style={styles.price}>
+                        Rp {Number(item.ticketPrice).toLocaleString("id-ID")}
+                      </Text>
+                      <Text style={styles.subtitle}>
+                        {item.location} • ★ {item.rating} ({item.reviewCount}{" "}
+                        ulasan)
+                      </Text>
+                      <Text style={styles.category}>{item.category}</Text>
+                    </View>
 
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        onPress={() => toggleFavorite(item.id)}
+                        style={styles.favoriteIconInline}
+                      >
+                        <Icon
+                          name={
+                            getFavoritByWisataId(item.id)?.favorit === 1
+                              ? "heart"
+                              : "heart-o"
+                          }
+                          size={20}
+                          color="red"
+                        />
+                      </TouchableOpacity>
 
                       <TouchableOpacity
-                        onPress={() => navigation.navigate('Detail', { wisata: item })}
+                        onPress={() =>
+                          navigation.navigate("Detail", { wisata: item })
+                        }
                         style={styles.detailButton}
                       >
                         <Text style={styles.detailButtonText}>Detail</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
-                  
                 </View>
               );
             }}
@@ -468,79 +401,146 @@ const getFavoritByWisataId = (idWisata) => {
       </>
     );
   };
-  
-  
 
   const renderMyOrder = () => (
     <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchMyOrders} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={fetchMyOrders} />
+      }
     >
-
       {orderLoading ? (
         <ActivityIndicator size="large" color="#007bff" />
       ) : orders.length === 0 ? (
         <Text style={styles.empty}>Belum ada pemesanan.</Text>
       ) : (
-        orders.map((order, index) => (
-          <View key={index} style={styles.card}>
+        orders.map((o, i) => (
+          <View key={i} style={styles.card}>
             <Text style={styles.label}>Nama Wisata:</Text>
-            <Text style={styles.value}>{order.nama_wisata}</Text>
+            <Text style={styles.value}>{o.nama_wisata}</Text>
 
             <Text style={styles.label}>Jumlah Tiket:</Text>
-            <Text style={styles.value}>{order.jumlah_tiket}</Text>
+            <Text style={styles.value}>{o.jumlah_tiket}</Text>
 
             <Text style={styles.label}>Total Harga:</Text>
-            <Text style={styles.value}>Rp {order.total_harga}</Text>
+            <Text style={styles.value}>Rp {o.total_harga}</Text>
 
             <Text style={styles.label}>Tanggal Pemesanan:</Text>
-            <Text style={styles.value}>{order.tanggal_pemesanan}</Text>
+            <Text style={styles.value}>{o.tanggal_pemesanan}</Text>
 
             <Text style={styles.label}>Status:</Text>
             <Text
               style={[
                 styles.value,
-                order.status === 'Pending'
-                  ? { color: 'orange', fontWeight: 'bold' }
-                  : order.status === 'Selesai'
-                    ? { color: 'green', fontWeight: 'bold' }
-                    : { color: '#555' },
+                o.status === "Pending"
+                  ? { color: "orange", fontWeight: "bold" }
+                  : o.status === "Selesai"
+                  ? { color: "green", fontWeight: "bold" }
+                  : { color: "#555" },
               ]}
             >
-              {order.status}
+              {o.status}
             </Text>
 
             <TouchableOpacity
               style={styles.qrButton}
               onPress={() => {
-                setSelectedQRData(order);
+                setSelectedQRData(o);
                 setModalVisible(true);
               }}
             >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Lihat QR</Text>
+              <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                Lihat QR
+              </Text>
             </TouchableOpacity>
 
-            {order.status === 'Pending' && (
+            {o.status === "Pending" && (
               <TouchableOpacity
-                style={[styles.qrButton, { backgroundColor: 'orange', marginTop: 8 }]}
-                onPress={() => navigation.navigate('PesanTiketScreen', { wisata: { id: order.id_wisata } })}
+                style={[
+                  styles.qrButton,
+                  { backgroundColor: "orange", marginTop: 8 },
+                ]}
+                onPress={() =>
+                  navigation.navigate("PesanTiketScreen", {
+                    wisata: { id: o.id_wisata },
+                  })
+                }
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}> Selesaikan Pemesanan</Text>
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  Selesaikan Pemesanan
+                </Text>
               </TouchableOpacity>
             )}
           </View>
         ))
-
       )}
     </ScrollView>
   );
 
+  const renderFavorit = () => {
+    const favouriteList = wisataList.filter((w) =>
+      favoritData.some((f) => f.idWisata === w.id)
+    );
+
+    return (
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Text style={styles.header}>Wisata Favorit</Text>
+
+        {favouriteList.length === 0 ? (
+          <Text style={styles.empty}>Belum ada wisata favorit.</Text>
+        ) : (
+          favouriteList.map((w) => (
+            <View key={w.id} style={styles.card}>
+              <ImageWithFallback uri={w.image} style={styles.image} />
+              <View style={styles.cardContent}>
+                <View style={styles.info}>
+                  <Text style={styles.title}>{w.name}</Text>
+                  <Text style={styles.subtitle}>
+                    {w.location} • ★ {w.rating} ({w.reviewCount} ulasan)
+                  </Text>
+                  <Text style={styles.category}>{w.category}</Text>
+                </View>
+
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    onPress={() => toggleFavorite(w.id)}
+                    style={styles.favoriteIconInline}
+                  >
+                    <Icon
+                      name={
+                        getFavoritByWisataId(w.id)?.favorit === 1
+                          ? "heart"
+                          : "heart-o"
+                      }
+                      size={20}
+                      color="red"
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("Detail", { wisata: w })}
+                    style={styles.detailButton}
+                  >
+                    <Text style={styles.detailButtonText}>Detail</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ))
+        )}
+      </ScrollView>
+    );
+  };
+
+  /* ──────────────────────────── RETURN ──────────────────────────── */
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {selectedTab === 'Beranda' && renderBeranda()}
-        {selectedTab === 'MyOrder' && renderMyOrder()}
+        {selectedTab === "Beranda" && renderBeranda()}
+        {selectedTab === "MyOrder" && renderMyOrder()}
+        {selectedTab === "Favorit" && renderFavorit()}
       </View>
 
+      {/* Bottom Tab Bar */}
       <View style={styles.tabBar}>
         {TABS.map((tab) => (
           <TouchableOpacity
@@ -548,14 +548,19 @@ const getFavoritByWisataId = (idWisata) => {
             style={styles.tabItem}
             onPress={() => handleTabPress(tab.key)}
           >
-            <Icon name={tab.icon} size={20} color="#fff" style={styles.tabIcon} />
+            <Icon
+              name={tab.icon}
+              size={20}
+              color="#fff"
+              style={styles.tabIcon}
+            />
             <Text style={styles.tabLabel}>{tab.label}</Text>
             {selectedTab === tab.key && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Modal QR */}
+      {/* QR Modal */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalBackground}>
           <View style={styles.modalContent}>
@@ -565,10 +570,15 @@ const getFavoritByWisataId = (idWisata) => {
               )}
             </View>
             <TouchableOpacity style={styles.qrSave} onPress={saveQRToGallery}>
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Simpan QR</Text>
+              <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                Simpan QR
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.qrClose}>
-              <Text style={{ color: '#007bff' }}>Tutup</Text>
+            <TouchableOpacity
+              onPress={() => setModalVisible(false)}
+              style={styles.qrClose}
+            >
+              <Text style={{ color: "#007bff" }}>Tutup</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -577,262 +587,152 @@ const getFavoritByWisataId = (idWisata) => {
   );
 }
 
+/* ───────────────────────────── STYLES ───────────────────────────── */
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f2f2f2',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 12,
-  },
+  safeArea: { flex: 1, backgroundColor: "#f2f2f2" },
+  container: { flex: 1, padding: 12 },
   header: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginVertical: 12,
-    textAlign: 'center',
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
   },
   search: {
-    borderWidth: 1,
-    borderColor: '#ccc',
+    backgroundColor: "#fff",
     borderRadius: 12,
-    padding: 12,
-    backgroundColor: '#fff',
+    padding: 10,
+    marginBottom: 12,
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 4,
+  filterSlider: { flexDirection: "row", marginBottom: 12 },
+  filterButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#eee",
+    marginRight: 8,
+  },
+  filterButtonActive: { backgroundColor: "#007bff" },
+  filterButtonText: { fontSize: 12 },
+  filterButtonTextActive: { color: "#fff" },
+  filterCard: {
+    width: 120,
+    height: 80,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#ddd",
+  },
+  filterCardImage: { width: "100%", height: "100%" },
+  filterCardText: {
+    position: "absolute",
+    bottom: 4,
+    left: 4,
+    color: "#fff",
+    fontWeight: "bold",
+    textShadowColor: "#000",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  cityHeader: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 20,
+    marginBottom: 8,
   },
   image: {
-    width: '100%',
+    width: "100%",
     height: 180,
-    backgroundColor: '#ddd',
+    backgroundColor: "#ccc",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 16,
+    elevation: 4,
   },
   cardContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
   },
-  info: {
-    flex: 1,
-    paddingRight: 10,
+  info: { flex: 1, paddingRight: 10 },
+  title: { fontSize: 18, fontWeight: "bold" },
+  price: { color: "#007bff", fontWeight: "bold", marginTop: 4 },
+  subtitle: { color: "#666", marginTop: 4 },
+  category: { marginTop: 6, fontStyle: "italic", color: "#007bff" },
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginTop: 10,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    color: '#666',
-    marginTop: 4,
-  },
-  category: {
-    marginTop: 6,
-    fontStyle: 'italic',
-    color: '#007bff',
-  },
-  price: {
-    marginTop: 4,
-    color: 'green',
-    fontWeight: 'bold',
-  },
+  favoriteIconInline: { marginRight: 10 },
   detailButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: "#007bff",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 10,
   },
-  detailButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  label: {
-    fontWeight: 'bold',
-    color: '#555',
-  },
-  value: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  empty: {
-    textAlign: 'center',
-    color: '#888',
-    marginTop: 40,
-  },
+  detailButtonText: { color: "#fff", fontWeight: "bold" },
+  empty: { textAlign: "center", color: "#888", marginTop: 40 },
+  label: { fontWeight: "bold", marginTop: 8 },
+  value: { color: "#555" },
 
-  // Tab Bar
+  /* Tab Bar */
   tabBar: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    backgroundColor: '#007bff',
+    flexDirection: "row",
+    backgroundColor: "#007bff",
     paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
+    paddingBottom: Platform.OS === "ios" ? 20 : 12,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
-  tabItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  tabIcon: {
-    marginBottom: 2,
-  },
-  tabLabel: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 2,
-  },
+  tabItem: { alignItems: "center", flex: 1 },
+  tabIcon: { marginBottom: 2 },
+  tabLabel: { color: "#fff", fontSize: 12, marginTop: 2 },
   tabIndicator: {
     height: 4,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 2,
     marginTop: 6,
-    width: '50%',
-    alignSelf: 'center',
+    width: "50%",
+    alignSelf: "center",
   },
 
-  // QR Code
-  qrButton: {
-    marginTop: 10,
-    backgroundColor: 'green',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
+  /* QR Modal */
   modalBackground: {
     flex: 1,
-    backgroundColor: '#000000aa',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  qrContainer: {
-    padding: 10,
-    backgroundColor: '#fff',
-  },
-  qrSave: {
-    backgroundColor: '#007bff',
-    padding: 10,
-    marginTop: 12,
-    borderRadius: 8,
-  },
-  qrClose: {
-    marginTop: 10,
-  },
-
-  // Filters
-  filterSlider: {
-    flexDirection: 'row',
-    marginTop: 12,
-    marginBottom: 10,
-  },
-  filterButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    backgroundColor: '#ddd',
+    backgroundColor: "#fff",
     borderRadius: 20,
-    marginRight: 10,
+    padding: 20,
+    alignItems: "center",
+    width: "80%",
   },
-  filterButtonActive: {
-    backgroundColor: '#007bff',
-  },
-  filterButtonText: {
-    color: '#333',
-  },
-  filterButtonTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-  // Slider & Cards
-  sliderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  qrContainer: { padding: 20, backgroundColor: "#fff", borderRadius: 20 },
+  qrSave: {
+    backgroundColor: "#28a745",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     marginTop: 16,
-    marginBottom: 8,
-    paddingHorizontal: 12,
   },
-  sliderContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
+  qrClose: { marginTop: 12 },
+  qrButton: {
+    backgroundColor: "#007bff",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginTop: 12,
   },
-  sliderCard: {
-    width: 160,
-    marginRight: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sliderImage: {
-    width: '100%',
-    height: 100,
-    backgroundColor: '#ccc',
-  },
-  sliderName: {
-    padding: 8,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  detail: {
-    paddingHorizontal: 8,
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 8,
-  },
-  favoriteIcon: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 10,
-  },
-
-  // Filter Card
-  filterCard: {
-    width: 140,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 3,
-  },
-  filterCardImage: {
-    width: '100%',
-    height: 100,
-    backgroundColor: '#ccc',
-  },
-  filterCardText: {
-    padding: 8,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  actionRow: {
-  flexDirection: 'row',
-  justifyContent: 'flex-end',
-  alignItems: 'center',
-  marginTop: 10,
-},
-
-favoriteIconInline: {
-  marginRight: 10,
-},
-
 });

@@ -149,7 +149,7 @@ export default function PemesananScreen({ route }) {
     setLoading(true);
 
     // Ambil data transaksi dari backend berdasarkan ID
-    const fullTransaksi = await axios.get(`http://10.1.49.74:8080/trspemesanan?id=${transaksiData.id}`);
+    const fullTransaksi = await axios.get(`http://172.20.10.9:8080/trspemesanan?id=${transaksiData.id}`);
     const existingData = fullTransaksi?.data;
 
     if (!existingData || !existingData.id) {
@@ -165,7 +165,7 @@ export default function PemesananScreen({ route }) {
 
     console.log('🚀 Mengirim update PUT:', updatePayload);
 
-    const response = await axios.put('http://10.1.49.74:8080/trspemesanan', updatePayload);
+    const response = await axios.put('http://172.20.10.9:8080/trspemesanan', updatePayload);
 
     console.log('✅ Respon dari backend:', response.data);
 
