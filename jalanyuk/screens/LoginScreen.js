@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';  
 import { getAllPenggunas } from '../API';
-import Notifikasi from '../components/Notifikasi'; // Sesuaikan path jika perlu
+import Notifikasi from '../components/Notifikasi';
+import i18n from '../components/i18n';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -26,10 +27,27 @@ const LoginScreen = ({ navigation }) => {
   const [notifVisible, setNotifVisible] = useState(false);
   const [notifMessage, setNotifMessage] = useState('');
   const [notifType, setNotifType] = useState('error');
+  const [lang, setLang] = useState('id');
+
+  useEffect(() => {
+    (async () => {
+      const storedLang = await AsyncStorage.getItem('appLanguage');
+      const fallbackLang = storedLang || 'id';
+      i18n.locale = fallbackLang;
+      setLang(fallbackLang);
+    })();
+  }, []);
+
+  const changeLanguage = async (newLang) => {
+    if (!newLang || typeof newLang !== 'string') return;
+    i18n.locale = newLang;
+    setLang(newLang);
+    await AsyncStorage.setItem('appLanguage', newLang);
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      setNotifMessage('Email dan password wajib diisi.');
+      setNotifMessage(i18n.t('errorEmpty'));
       setNotifType('error');
       setNotifVisible(true);
       return;
@@ -47,12 +65,7 @@ const LoginScreen = ({ navigation }) => {
         await AsyncStorage.setItem('userNamaLengkap', user.nama_lengkap); 
         await AsyncStorage.setItem('userStatus', user.status);
 
-        console.log('DATA LOGIN DARI API:', user); 
-
-        
-
-        setNotifMessage('Login berhasil!');
-        console.log('User ditemukan:', user);
+        setNotifMessage(i18n.t('successLogin'));
         setNotifType('success');
         setNotifVisible(true);
 
@@ -65,13 +78,13 @@ const LoginScreen = ({ navigation }) => {
           }
         }, 1500);
       } else {
-        setNotifMessage('Email atau password salah.');
+        setNotifMessage(i18n.t('errorLogin'));
         setNotifType('error');
         setNotifVisible(true);
       }
     } catch (error) {
       console.log('Login error:', error);
-      setNotifMessage('Terjadi kesalahan saat login.');
+      setNotifMessage(i18n.t('errorGeneral'));
       setNotifType('error');
       setNotifVisible(true);
     }
@@ -91,15 +104,33 @@ const LoginScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
+            {/* Language Buttons */}
+            <View style={styles.languageSelector}>
+              <TouchableOpacity
+                onPress={() => changeLanguage('id')}
+                style={[styles.langButton, lang === 'id' && styles.langButtonActive]}
+              >
+                <Text style={styles.langText}>🇮🇩</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => changeLanguage('en')}
+                style={[styles.langButton, lang === 'en' && styles.langButtonActive]}
+              >
+                <Text style={styles.langText}>🇺🇸</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Logo */}
             <View style={styles.logoCard}>
               <Image source={require('../assets/jalanyuk.png')} style={styles.logo} />
             </View>
 
+            {/* Card */}
             <View style={styles.card}>
-              <Text style={styles.title}>Login</Text>
+              <Text style={styles.title}>{i18n.t('login')}</Text>
 
               <TextInput
-                placeholder="Email"
+                placeholder={i18n.t('email')}
                 placeholderTextColor="#aaa"
                 value={email}
                 onChangeText={setEmail}
@@ -110,7 +141,7 @@ const LoginScreen = ({ navigation }) => {
 
               <View style={styles.passwordContainer}>
                 <TextInput
-                  placeholder="Password"
+                  placeholder={i18n.t('password')}
                   placeholderTextColor="#aaa"
                   value={password}
                   onChangeText={setPassword}
@@ -131,13 +162,15 @@ const LoginScreen = ({ navigation }) => {
                 onPress={handleLogin}
                 disabled={loading}
               >
-                <Text style={styles.buttonText}>{loading ? 'Loading...' : 'Sign In'}</Text>
+                <Text style={styles.buttonText}>
+                  {loading ? i18n.t('loading') : i18n.t('signIn')}
+                </Text>
               </TouchableOpacity>
 
               <Text style={styles.registerText}>
-                Don't have an account?{' '}
+                {i18n.t('noAccount')}{' '}
                 <Text style={styles.registerLink} onPress={() => navigation.navigate('Register')}>
-                  Sign Up
+                  {i18n.t('signUp')}
                 </Text>
               </Text>
             </View>
@@ -159,17 +192,33 @@ const LoginScreen = ({ navigation }) => {
 export default LoginScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
+    position: 'relative',
+  },
+  languageSelector: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    flexDirection: 'row',
+    zIndex: 10,
+    gap: 10,
+  },
+  langButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#999',
+  },
+  langButtonActive: {
+    backgroundColor: '#fff',
+  },
+  langText: {
+    fontSize: 18,
   },
   logoCard: {
-    width: '50%',
     alignItems: 'center',
     marginBottom: 20,
   },
@@ -179,7 +228,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   card: {
-    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 25,

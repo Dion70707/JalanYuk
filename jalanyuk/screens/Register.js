@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,14 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { createPengguna } from '../API'; // sesuaikan path
-import Notifikasi from '../components/Notifikasi'; // sesuaikan path
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createPengguna } from '../API';
+import Notifikasi from '../components/Notifikasi';
+import i18n from '../components/i18n';
 
 const RegisterScreen = ({ navigation }) => {
   const [nama, setNama] = useState('');
@@ -26,9 +29,18 @@ const RegisterScreen = ({ navigation }) => {
   const [notifMessage, setNotifMessage] = useState('');
   const idRole = 2;
 
+  useEffect(() => {
+    (async () => {
+      const storedLang = await AsyncStorage.getItem('appLanguage');
+      if (storedLang) {
+        i18n.locale = storedLang;
+      }
+    })();
+  }, []);
+
   const handleRegister = async () => {
     if (!nama || !email || !password) {
-      setNotifMessage('Semua kolom wajib diisi.');
+      setNotifMessage(i18n.t('errorEmpty'));
       setNotifVisible(true);
       return;
     }
@@ -47,7 +59,7 @@ const RegisterScreen = ({ navigation }) => {
       await createPengguna(newPengguna);
       setLoading(false);
 
-      Alert.alert('Registrasi Berhasil', 'Silakan login dengan akun Anda.', [
+      Alert.alert(i18n.t('successRegister'), i18n.t('signIn'), [
         {
           text: 'OK',
           onPress: () => navigation.navigate('Login'),
@@ -57,14 +69,13 @@ const RegisterScreen = ({ navigation }) => {
       setLoading(false);
       console.log(error);
 
-      if (error?.message?.includes('409')) {
-        Alert.alert('Email Sudah Terdaftar', 'Gunakan email lain untuk registrasi.');
+      if (error?.response?.status === 409) {
+        Alert.alert('Email Sudah Terdaftar', i18n.t('emailExistTitle'));
       } else {
-        Alert.alert('Error', 'Gagal menambahkan pengguna.');
+        Alert.alert('Error', i18n.t('errorGeneral'));
       }
     }
   };
-
 
   return (
     <LinearGradient colors={['#007bff', '#0056b3']} style={styles.container}>
@@ -79,33 +90,33 @@ const RegisterScreen = ({ navigation }) => {
           bounces={false}
         >
           <View style={styles.card}>
-            <Text style={styles.title}>Register</Text>
+            <Text style={styles.title}>{i18n.t('signUp')}</Text>
 
-            <Text style={styles.label}>Full Name</Text>
+             <Text style={styles.label}>Full Name</Text>
             <TextInput
               style={styles.input}
               value={nama}
               onChangeText={setNama}
-              placeholder="Masukkan nama lengkap"
+              placeholder="Enter full name"
             />
 
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{i18n.t('email')}</Text>
             <TextInput
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="Masukkan email"
+              placeholder={i18n.t('email')}
               keyboardType="email-address"
               autoCapitalize="none"
             />
 
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{i18n.t('password')}</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.inputPassword}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Masukkan password"
+                placeholder={i18n.t('password')}
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -117,33 +128,33 @@ const RegisterScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
+           
+
             <TouchableOpacity
               style={styles.button}
               onPress={handleRegister}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>Sign Up</Text>
+              <Text style={styles.buttonText}>{i18n.t('signUp')}</Text>
             </TouchableOpacity>
 
             <View style={styles.bottomText}>
-              <Text style={styles.registerText}>Have Account? </Text>
+              <Text style={styles.registerText}>{i18n.t('haveAccount')} </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.registerLink}>Sign In</Text>
+                <Text style={styles.registerLink}>{i18n.t('signIn')}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Modal loading */}
       <Modal visible={loading} transparent animationType="fade">
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#ffffff" />
-          <Text style={styles.loadingText}>Registering...</Text>
+          <Text style={styles.loadingText}>{i18n.t('loading')}</Text>
         </View>
       </Modal>
 
-      {/* Notifikasi */}
       <Notifikasi
         visible={notifVisible}
         message={notifMessage}
