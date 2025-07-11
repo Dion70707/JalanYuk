@@ -8,7 +8,7 @@ import {
   Image,
 } from 'react-native';
 
-const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
+const FALLBACK_IMAGE = 'https:192.168.136.125:8080';
 
 const ImageWithFallback = ({ uri, style }) => {
   const [error, setError] = useState(false);

@@ -61,45 +61,45 @@ export default function HomeScreen({ navigation }) {
   const [favoriteIds, setFavoriteIds] = useState([]);
 
   const fetchWisataData = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllWisata();
-      const data = Array.isArray(response) ? response : [];
+  try {
+    setLoading(true);
+    const response = await getAllWisata();
+    const data = Array.isArray(response) ? response : [];
 
-      const mappedData = await Promise.all(
-        data.map((item) => {
-          const imageUrl = item.id_galeri
-            ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
-            : FALLBACK_IMAGE;
-      
-          // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
-          const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
-      
-          return {
-            id: item.id,
-            name: item.nama_wisata || 'Tanpa Nama',
-            location: item.alamat || 'Alamat tidak tersedia',
-            rating: item.rating_rata ?? 0,
-            reviewCount: item.jumlah_review ?? 0,
-            category: item.kategori || 'Kategori tidak tersedia',
-            description: item.deskripsi || '',
-            image: imageUrl,
-            latitude: parseFloat(item.koordinat_lat) || 0,
-            longitude: parseFloat(item.koordinat_lng) || 0,
-            ticketPrice: item.harga_tiket || 0,
-            kota: kota,
-          };
-        })
-      );
-      
+    const mappedData = await Promise.all(
+      data.map((item) => {
+        const imageUrl = item.id_galeri
+          ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
+          : FALLBACK_IMAGE;
 
-      setWisataList(mappedData);
-    } catch (error) {
-      console.error('Gagal memuat data wisata:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
+        const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
+
+        return {
+          id: item.id,
+          name: item.nama_wisata || 'Tanpa Nama',
+          location: kota, // Ganti alamat dengan nama kota
+          rating: item.rating_rata ?? 0,
+          reviewCount: item.jumlah_review ?? 0,
+          category: item.kategori || 'Kategori tidak tersedia',
+          description: item.deskripsi || '',
+          image: imageUrl,
+          latitude: parseFloat(item.koordinat_lat) || 0,
+          longitude: parseFloat(item.koordinat_lng) || 0,
+          ticketPrice: item.harga_tiket || 0,
+          kota: kota,
+        };
+      })
+    );
+
+    setWisataList(mappedData);
+  } catch (error) {
+    console.error('Gagal memuat data wisata:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const fetchMyOrders = async () => {
     try {
@@ -145,14 +145,7 @@ export default function HomeScreen({ navigation }) {
     if (fav) setFavoriteIds(JSON.parse(fav));
   };
   
-  const toggleFavorite = async (id) => {
-    const updatedFavorites = favoriteIds.includes(id)
-      ? favoriteIds.filter((favId) => favId !== id)
-      : [...favoriteIds, id];
   
-    setFavoriteIds(updatedFavorites);
-    await AsyncStorage.setItem('favoriteWisata', JSON.stringify(updatedFavorites));
-  };
 
   const filteredData = wisataList
   .filter((item) =>
@@ -182,6 +175,7 @@ export default function HomeScreen({ navigation }) {
     return `Nama: ${user?.nama_lengkap}\nWisata: ${order.nama_wisata}\nJumlah: ${order.jumlah_tiket}\nTotal: Rp${order.total_harga}\nTanggal: ${order.tanggal_pemesanan}`;
   };
 
+
   const saveQRToGallery = async () => {
     try {
       const permission = await MediaLibrary.requestPermissionsAsync();
@@ -204,11 +198,6 @@ export default function HomeScreen({ navigation }) {
     item.name.toLowerCase().includes(search.toLowerCase())
   );
   
-  const sortedSliderList = [...filteredList].sort((a, b) => {
-    if (activeFilter === 'Rating') return b.rating - a.rating;
-    if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
-    return 0; // 'Semua'
-  });
   
   const renderBeranda = () => {
     const filteredData = wisataList
@@ -223,11 +212,7 @@ export default function HomeScreen({ navigation }) {
         return a.name.localeCompare(b.name);
       });
   
-    const sortedSliderList = [...filteredData].sort((a, b) => {
-      if (activeFilter === 'Rating') return b.rating - a.rating;
-      if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
-      return 0;
-    });
+
   
     return (
       <>
@@ -242,28 +227,7 @@ export default function HomeScreen({ navigation }) {
           placeholderTextColor="#999"
         />
   
-        {/* 🎛️ Filter Slider */}
-        <View style={styles.filterSlider}>
-          {['Semua', 'Rating', 'Harga'].map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              onPress={() => setActiveFilter(filter)}
-              style={[
-                styles.filterButton,
-                activeFilter === filter && styles.filterButtonActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  activeFilter === filter && styles.filterButtonTextActive,
-                ]}
-              >
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        
   
         {/* 🖼️ Filter Cepat Slider */}
         <ScrollView
@@ -344,17 +308,7 @@ export default function HomeScreen({ navigation }) {
                   )}
   
                   <View style={styles.card}>
-                    {/* Favorite Icon */}
-                    <TouchableOpacity
-                      onPress={() => toggleFavorite(item.id)}
-                      style={styles.favoriteIcon}
-                    >
-                      <Icon
-                        name={favoriteIds.includes(item.id) ? 'heart' : 'heart-o'}
-                        size={20}
-                        color="red"
-                      />
-                    </TouchableOpacity>
+                    
   
                     <ImageWithFallback uri={item.image} style={styles.image} />
                     <View style={styles.cardContent}>
@@ -651,30 +605,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  // Filters
-  filterSlider: {
-    flexDirection: 'row',
-    marginTop: 12,
-    marginBottom: 10,
-  },
-  filterButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    backgroundColor: '#ddd',
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  filterButtonActive: {
-    backgroundColor: '#007bff',
-  },
-  filterButtonText: {
-    color: '#333',
-  },
-  filterButtonTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
   // Slider & Cards
   sliderTitle: {
     fontSize: 18,
@@ -732,7 +662,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     overflow: 'hidden',
-    elevation: 3,
+    elevation: 5,
   },
   filterCardImage: {
     width: '100%',

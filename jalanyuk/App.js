@@ -28,6 +28,8 @@ import MyOrder from './screens/MyOrder';
 import FavoritScreen from './screens/FavoritScreen';
 import FilteredWisataScreen from './screens/FilteredWisataScreen';
 import TopRatingScreen from './screens/TopRatingScreen';
+import TermurahScreen from './screens/TermurahScreen';
+import KotaScreen from './screens/KotaScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -184,6 +186,16 @@ export default function App() {
           <Stack.Screen
             name="TopRatingScreen"
             component={TopRatingScreen}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="TermurahScreen"
+            component={TermurahScreen}
+            options={{ headerBackVisible: false }}
+          />
+          <Stack.Screen
+            name="KotaScreen"
+            component={KotaScreen}
             options={{ headerBackVisible: false }}
           />
         </Stack.Navigator>

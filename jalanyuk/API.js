@@ -11,6 +11,15 @@ const api = axios.create({
   },
 });
 
+export async function getAllKota() {
+  try {
+    const response = await api.get('/kotas'); // Pastikan endpoint /kotas tersedia di backend
+    return response.data;
+  } catch (error) {
+    console.error('Gagal mengambil data kota:', error);
+    throw error;
+  }
+}
 export async function getAllReviews() {
   try {
     const response = await api.get('/trsriviews');
