@@ -75,49 +75,50 @@ export default function HomeScreen({ navigation }) {
   const [selectedQRData, setSelectedQRData] = useState(null);
   const qrRef = useRef();
   const [activeFilter, setActiveFilter] = useState('Semua');
-  const [favoritData, setFavoritData] = useState([]);
+  const [favoriteIds, setFavoriteIds] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState('Semua');
 
 
   const fetchWisataData = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllWisata();
-      const data = Array.isArray(response) ? response : [];
+  try {
+    setLoading(true);
+    const response = await getAllWisata();
+    const data = Array.isArray(response) ? response : [];
 
-      const mappedData = await Promise.all(
-        data.map((item) => {
-          const imageUrl = item.id_galeri
-            ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
-            : FALLBACK_IMAGE;
-      
-          // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
-          const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
-      
-          return {
-            id: item.id,
-            name: item.nama_wisata || 'Tanpa Nama',
-            location: item.alamat || 'Alamat tidak tersedia',
-            rating: item.rating_rata ?? 0,
-            reviewCount: item.jumlah_review ?? 0,
-            category: item.kategori || 'Kategori tidak tersedia',
-            description: item.deskripsi || '',
-            image: imageUrl,
-            latitude: parseFloat(item.koordinat_lat) || 0,
-            longitude: parseFloat(item.koordinat_lng) || 0,
-            ticketPrice: item.harga_tiket || 0,
-            kota: kota,
-          };
-        })
-      );
-      
+    const mappedData = await Promise.all(
+      data.map((item) => {
+        const imageUrl = item.id_galeri
+          ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
+          : FALLBACK_IMAGE;
 
-      setWisataList(mappedData);
-    } catch (error) {
-      console.error('Gagal memuat data wisata:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
+        const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
+
+        return {
+          id: item.id,
+          name: item.nama_wisata || 'Tanpa Nama',
+          location: kota, // Ganti alamat dengan nama kota
+          rating: item.rating_rata ?? 0,
+          reviewCount: item.jumlah_review ?? 0,
+          category: item.kategori || 'Kategori tidak tersedia',
+          description: item.deskripsi || '',
+          image: imageUrl,
+          latitude: parseFloat(item.koordinat_lat) || 0,
+          longitude: parseFloat(item.koordinat_lng) || 0,
+          ticketPrice: item.harga_tiket || 0,
+          kota: kota,
+        };
+      })
+    );
+
+    setWisataList(mappedData);
+  } catch (error) {
+    console.error('Gagal memuat data wisata:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const fetchData = async () => {
     try {
@@ -278,6 +279,7 @@ const getFavoritByWisataId = (idWisata) => {
 };
 
 
+  
 
   const filteredData = wisataList
   .filter((item) =>
@@ -307,6 +309,7 @@ const getFavoritByWisataId = (idWisata) => {
     return `Nama: ${user?.nama_lengkap}\nWisata: ${order.nama_wisata}\nJumlah: ${order.jumlah_tiket}\nTotal: Rp${order.total_harga}\nTanggal: ${order.tanggal_pemesanan}`;
   };
 
+
   const saveQRToGallery = async () => {
     try {
       const permission = await MediaLibrary.requestPermissionsAsync();
@@ -331,177 +334,110 @@ const getFavoritByWisataId = (idWisata) => {
     item.name.toLowerCase().includes(search.toLowerCase())
   );
   
-  const sortedSliderList = [...filteredList].sort((a, b) => {
-    if (activeFilter === 'Rating') return b.rating - a.rating;
-    if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
-    return 0; // 'Semua'
-  });
   
+  const FALLBACK_IMAGE = 'https://example.com/default-image.jpg'; // Ganti dengan image default sesuai kebutuhan
+
   const renderBeranda = () => {
-    const filteredData = wisataList
-      .filter((item) =>
-        item.name.toLowerCase().includes(search.toLowerCase())
-      )
-      .sort((a, b) => {
-        const kotaA = (a.kota || '').toLowerCase();
-        const kotaB = (b.kota || '').toLowerCase();
-        if (kotaA < kotaB) return -1;
-        if (kotaA > kotaB) return 1;
-        return a.name.localeCompare(b.name);
-      });
-  
-    const sortedSliderList = [...filteredData].sort((a, b) => {
-      if (activeFilter === 'Rating') return b.rating - a.rating;
-      if (activeFilter === 'Harga') return a.ticketPrice - b.ticketPrice;
-      return 0;
-    });
-  
-    return (
-      <>
-        <Text style={styles.header}>Wisata Indonesia</Text>
-  
-        {/* 🔍 Input Pencarian */}
-        <TextInput
-          placeholder="Cari tempat wisata..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.search}
-          placeholderTextColor="#999"
-        />
-  
-        {/* 🎛️ Filter Slider */}
-        <View style={styles.filterSlider}>
-          {['Semua', 'Rating', 'Harga'].map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              onPress={() => setActiveFilter(filter)}
-              style={[
-                styles.filterButton,
-                activeFilter === filter && styles.filterButtonActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  activeFilter === filter && styles.filterButtonTextActive,
-                ]}
-              >
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-  
-        {/* 🖼️ Filter Cepat Slider */}
-        <ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  style={{ marginBottom: 16 }}
-  contentContainerStyle={{ paddingHorizontal: 4 }}
->
-  {/* Rating */}
-  <TouchableOpacity
-    style={[styles.filterCard, { marginRight: 12 }]}
-    onPress={() =>
-      navigation.navigate('TopRatingScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => b.rating - a.rating)[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Top Rating</Text>
-  </TouchableOpacity>
+  const filteredData = wisataList
+    .filter((item) =>
+      item.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  {/* Harga */}
-  <TouchableOpacity
-    style={[styles.filterCard, { marginRight: 12 }]}
-    onPress={() =>
-      navigation.navigate('TermurahScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Termurah</Text>
-  </TouchableOpacity>
+  const topRatingItem = [...wisataList].sort((a, b) => b.rating - a.rating)[0];
+  const termurahItem = [...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0];
+  const kotaItem = [...wisataList].find((item) => item.kota);
 
-  {/* Kota */}
-  <TouchableOpacity
-    style={styles.filterCard}
-    onPress={() =>
-      navigation.navigate('KotaScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => a.kota.localeCompare(b.kota))[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Kota</Text>
-  </TouchableOpacity>
-</ScrollView>
+  const topRatingImage = topRatingItem?.image || FALLBACK_IMAGE;
+  const termurahImage = termurahItem?.image || FALLBACK_IMAGE;
+  const kotaImage = kotaItem?.image || FALLBACK_IMAGE;
 
-  
-       
-  
-        {/* 📃 Daftar Wisata Berdasarkan Kota */}
-        {loading ? (
-          <ActivityIndicator size="large" color="#007bff" />
-        ) : (
-          <FlatList
-            data={filteredData}
-            keyExtractor={(item) => item.id?.toString()}
-            contentContainerStyle={{ paddingBottom: 80 }}
-            renderItem={({ item, index }) => {
-              const isFirstItem = index === 0;
-              const isNewCity =
-                isFirstItem || item.kota !== filteredData[index - 1].kota;
-  
-              return (
-                <View>
-                  {isNewCity && (
-                    <Text style={styles.cityHeader}>{item.kota}</Text>
-                  )}
-  
-                    <ImageWithFallback uri={item.image} style={styles.image} />
-                    <View style={styles.cardContent}>
-                      <View style={styles.info}>
-                        <Text style={styles.title}>{item.name}</Text>
-                        <Text style={styles.price}>
-                          Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
-                        </Text>
-                        <Text style={styles.subtitle}>
-                          {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
-                        </Text>
-                        <Text style={styles.category}>{item.category}</Text>
-                      </View>
+  return (
+    <>
+      <Text style={styles.header}>Wisata Indonesia</Text>
+      <TextInput
+        placeholder="Cari tempat wisata..."
+        value={search}
+        onChangeText={setSearch}
+        style={styles.search}
+        placeholderTextColor="#999"
+      />
 
-                      {/* Wrapper untuk tombol dan ikon love */}
-                        <View style={styles.actionRow}>
-                          {/* Favorite Icon di kiri */}
-                          <TouchableOpacity
-                            onPress={() => toggleFavorite(item.id)}
-                            style={styles.favoriteIconInline}
-                          >
-                            <Icon
-                              name={
-                                getFavoritByWisataId(item.id)?.favorit === 1
-                                  ? 'heart'
-                                  : 'heart-o'
-                              }
-                              size={20}
-                              color="red"
-                            />
-                          </TouchableOpacity>
+      {/* Filter Gambar */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: 0 }}
+        contentContainerStyle={{ paddingHorizontal: 12 }}
+      >
+        <TouchableOpacity
+          style={[styles.filterCard, { marginRight: 12 }]}
+          onPress={() => navigation.navigate('TopRatingScreen', { data: wisataList })}
+        >
+          <ImageWithFallback uri={topRatingImage} style={styles.filterCardImage} />
+          <Text style={styles.filterCardText}>Top Rating</Text>
+        </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.filterCard, { marginRight: 12 }]}
+          onPress={() => navigation.navigate('TermurahScreen', { data: wisataList })}
+        >
+          <ImageWithFallback uri={termurahImage} style={styles.filterCardImage} />
+          <Text style={styles.filterCardText}>Termurah</Text>
+        </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.filterCard}
+          onPress={() => navigation.navigate('KotaScreen', { data: wisataList })}
+        >
+          <ImageWithFallback uri={kotaImage} style={styles.filterCardImage} />
+          <Text style={styles.filterCardText}>Provinsi</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* List Wisata */}
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" />
+      ) : (
+        <FlatList
+          data={filteredData}
+          keyExtractor={(item) => item.id?.toString()}
+          contentContainerStyle={{ paddingBottom: 80 }}
+          renderItem={({ item, index }) => {
+            const isFirstItem = index === 0;
+            const isNewCity = isFirstItem || item.kota !== filteredData[index - 1].kota;
+
+            return (
+              <View key={item.id}>
+                {isNewCity && <Text style={styles.cityHeader}>{item.kota}</Text>}
+                <View style={styles.card}>
+                  <ImageWithFallback uri={item.image} style={styles.image} />
+                  <View style={styles.cardContent}>
+                    <View style={styles.info}>
+                      <Text style={styles.title}>{item.name}</Text>
+                      <Text style={styles.price}>
+                        Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
+                      </Text>
+                      <Text style={styles.subtitle}>
+                        {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
+                      </Text>
+                      <Text style={styles.category}>{item.category}</Text>
+                    </View>
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        onPress={() => toggleFavorite(item.id)}
+                        style={styles.favoriteIconInline}
+                      >
+                        <Icon
+                          name={
+                            getFavoritByWisataId(item.id)?.favorit === 1
+                              ? 'heart'
+                              : 'heart-o'
+                          }
+                          size={20}
+                          color="red"
+                        />
+                      </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => navigation.navigate('Detail', { wisata: item })}
                         style={styles.detailButton}
@@ -510,15 +446,17 @@ const getFavoritByWisataId = (idWisata) => {
                       </TouchableOpacity>
                     </View>
                   </View>
-                  
                 </View>
-              );
-            }}
-          />
-        )}
-      </>
-    );
-  };
+              </View>
+            );
+          }}
+        />
+      )}
+    </>
+  );
+};
+
+  
   
   
 
@@ -841,30 +779,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  // Filters
-  filterSlider: {
-    flexDirection: 'row',
-    marginTop: 12,
-    marginBottom: 10,
-  },
-  filterButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    backgroundColor: '#ddd',
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  filterButtonActive: {
-    backgroundColor: '#007bff',
-  },
-  filterButtonText: {
-    color: '#333',
-  },
-  filterButtonTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
   // Slider & Cards
   sliderTitle: {
     fontSize: 18,
@@ -914,21 +828,34 @@ const styles = StyleSheet.create({
 
   // Filter Card
   filterCard: {
-    width: 140,
+    width: 190,
+    height: 130,
     backgroundColor: '#fff',
     borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 3,
+    marginRight: 12,
+    elevation: 4, // untuk Android shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    padding: 8,
   },
+  
   filterCardImage: {
     width: '100%',
-    height: 100,
-    backgroundColor: '#ccc',
+    height: 80,
+    borderRadius: 8,
+    resizeMode: 'cover',
+    marginBottom: 1,
   },
+  
   filterCardText: {
-    padding: 8,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     textAlign: 'center',
+    color: '#333',
   },
   actionRow: {
   flexDirection: 'row',

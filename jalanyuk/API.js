@@ -17,6 +17,15 @@ export const addFavorit = (payload) => api.post('/TrsFavorit', payload);
 
 export const softDeleteFavorit = (payload) => api.put('/TrsFavorit', payload);
 
+export async function getAllKota() {
+  try {
+    const response = await api.get('/kotas'); // Pastikan endpoint /kotas tersedia di backend
+    return response.data;
+  } catch (error) {
+    console.error('Gagal mengambil data kota:', error);
+    throw error;
+  }
+}
 export async function getAllReviews() {
   try {
     const response = await api.get('/trsriviews');
