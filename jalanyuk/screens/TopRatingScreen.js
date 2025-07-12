@@ -8,7 +8,7 @@ import {
   Image,
 } from 'react-native';
 
-const FALLBACK_IMAGE = 'https:192.168.136.125:8080';
+const FALLBACK_IMAGE = 'https:10.1.56.34:8080';
 
 const ImageWithFallback = ({ uri, style }) => {
   const [error, setError] = useState(false);
@@ -82,12 +82,12 @@ export default function TopRatingScreen({ route, navigation }) {
     <View style={styles.container}>
       <Text style={styles.header}>Top Rating Wisata</Text>
       <View style={styles.filterContainer}>
-        <RatingFilterButton label="⭐ 5" value="5" />
-        <RatingFilterButton label="⭐ 4" value="4" />
-        <RatingFilterButton label="⭐ 3" value="3" />
-        <RatingFilterButton label="⭐ 2" value="2" />
-        <RatingFilterButton label="⭐ 1" value="1" />
-        <RatingFilterButton label="Semua" value="ALL" />
+      <RatingFilterButton label="Semua" value="ALL" />
+  <RatingFilterButton label="⭐ 5" value="5" />
+  <RatingFilterButton label="⭐ 4" value="4" />
+  <RatingFilterButton label="⭐ 3" value="3" />
+  <RatingFilterButton label="⭐ 2" value="2" />
+  <RatingFilterButton label="⭐ 1" value="1" />
       </View>
       <FlatList
         data={filteredData}

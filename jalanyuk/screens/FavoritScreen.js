@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { getAllWisata } from '../API';
 import ImageWithFallback from '../components/ImageWithFallback';
 
-const IMAGE_BASE_URL = 'http://192.168.136.125:8080';
+const IMAGE_BASE_URL = 'http://10.1.56.34:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
 
 const TABS = [

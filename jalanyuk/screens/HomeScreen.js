@@ -22,8 +22,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 
-const IMAGE_BASE_URL = 'http://192.168.136.125:8080';
-const FALLBACK_IMAGE = 'http://192.168.136.125:8080';
+const IMAGE_BASE_URL = 'http://10.1.56.34:8080';
+const FALLBACK_IMAGE = 'http://10.1.56.34:8080';
 
 
 const ImageWithFallback = ({ uri, style }) => {
@@ -59,6 +59,8 @@ export default function HomeScreen({ navigation }) {
   const qrRef = useRef();
   const [activeFilter, setActiveFilter] = useState('Semua');
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState('Semua');
+
 
   const fetchWisataData = async () => {
   try {
@@ -199,23 +201,28 @@ export default function HomeScreen({ navigation }) {
   );
   
   
+  const FALLBACK_IMAGE = 'https://example.com/default-image.jpg'; // Ganti dengan image default sesuai kebutuhan
+
   const renderBeranda = () => {
+    // Filter & Sort data berdasarkan input pencarian
     const filteredData = wisataList
       .filter((item) =>
         item.name.toLowerCase().includes(search.toLowerCase())
       )
-      .sort((a, b) => {
-        const kotaA = (a.kota || '').toLowerCase();
-        const kotaB = (b.kota || '').toLowerCase();
-        if (kotaA < kotaB) return -1;
-        if (kotaA > kotaB) return 1;
-        return a.name.localeCompare(b.name);
-      });
+      .sort((a, b) => a.name.localeCompare(b.name)); // Urutkan nama A-Z
   
-
+    // Ambil gambar representatif untuk slider
+    const topRatingItem = [...wisataList].sort((a, b) => b.rating - a.rating)[0];
+    const termurahItem = [...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0];
+    const kotaItem = [...wisataList].find((item) => item.kota); // ambil salah satu yang punya kota
+  
+    const topRatingImage = topRatingItem?.image || FALLBACK_IMAGE;
+    const termurahImage = termurahItem?.image || FALLBACK_IMAGE;
+    const kotaImage = kotaItem?.image || FALLBACK_IMAGE;
   
     return (
       <>
+        {/* Judul Halaman */}
         <Text style={styles.header}>Wisata Indonesia</Text>
   
         {/* 🔍 Input Pencarian */}
@@ -227,117 +234,99 @@ export default function HomeScreen({ navigation }) {
           placeholderTextColor="#999"
         />
   
-        
-  
-        {/* 🖼️ Filter Cepat Slider */}
+        {/* 🖼️ Filter Cepat (Slider Gambar) */}
         <ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  style={{ marginBottom: 16 }}
-  contentContainerStyle={{ paddingHorizontal: 4 }}
->
-  {/* Rating */}
-  <TouchableOpacity
-    style={[styles.filterCard, { marginRight: 12 }]}
-    onPress={() =>
-      navigation.navigate('TopRatingScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => b.rating - a.rating)[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Top Rating</Text>
-  </TouchableOpacity>
-
-  {/* Harga */}
-  <TouchableOpacity
-    style={[styles.filterCard, { marginRight: 12 }]}
-    onPress={() =>
-      navigation.navigate('TermurahScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Termurah</Text>
-  </TouchableOpacity>
-
-  {/* Kota */}
-  <TouchableOpacity
-    style={styles.filterCard}
-    onPress={() =>
-      navigation.navigate('KotaScreen', {
-        data: wisataList,
-      })
-    }
-  >
-    <ImageWithFallback
-      uri={[...wisataList].sort((a, b) => a.kota.localeCompare(b.kota))[0]?.image || FALLBACK_IMAGE}
-      style={styles.filterCardImage}
-    />
-    <Text style={styles.filterCardText}>Kota</Text>
-  </TouchableOpacity>
-</ScrollView>
-
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 0 }}
+          contentContainerStyle={{ paddingHorizontal: 12 }}
+        >
+          {/* Top Rating */}
+          <TouchableOpacity
+            style={[styles.filterCard, { marginRight: 12 }]}
+            onPress={() =>
+              navigation.navigate('TopRatingScreen', {
+                data: wisataList,
+              })
+            }
+          >
+            <ImageWithFallback
+              uri={topRatingImage}
+              style={styles.filterCardImage}
+            />
+            <Text style={styles.filterCardText}>Top Rating</Text>
+          </TouchableOpacity>
   
-       
+          {/* Termurah */}
+          <TouchableOpacity
+            style={[styles.filterCard, { marginRight: 12 }]}
+            onPress={() =>
+              navigation.navigate('TermurahScreen', {
+                data: wisataList,
+              })
+            }
+          >
+            <ImageWithFallback
+              uri={termurahImage}
+              style={styles.filterCardImage}
+            />
+            <Text style={styles.filterCardText}>Termurah</Text>
+          </TouchableOpacity>
   
-        {/* 📃 Daftar Wisata Berdasarkan Kota */}
+          {/* Kota */}
+          <TouchableOpacity
+            style={styles.filterCard}
+            onPress={() =>
+              navigation.navigate('KotaScreen', {
+                data: wisataList,
+              })
+            }
+          >
+            <ImageWithFallback
+              uri={kotaImage}
+              style={styles.filterCardImage}
+            />
+            <Text style={styles.filterCardText}>Provinsi</Text>
+          </TouchableOpacity>
+        </ScrollView>
+  
+        {/* 📃 Daftar Wisata */}
         {loading ? (
           <ActivityIndicator size="large" color="#007bff" />
         ) : (
           <FlatList
             data={filteredData}
             keyExtractor={(item) => item.id?.toString()}
-            contentContainerStyle={{ paddingBottom: 80 }}
-            renderItem={({ item, index }) => {
-              const isFirstItem = index === 0;
-              const isNewCity =
-                isFirstItem || item.kota !== filteredData[index - 1].kota;
-  
-              return (
-                <View>
-                  {isNewCity && (
-                    <Text style={styles.cityHeader}>{item.kota}</Text>
-                  )}
-  
-                  <View style={styles.card}>
-                    
-  
-                    <ImageWithFallback uri={item.image} style={styles.image} />
-                    <View style={styles.cardContent}>
-                      <View style={styles.info}>
-                        <Text style={styles.title}>{item.name}</Text>
-                        <Text style={styles.price}>
-                          Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
-                        </Text>
-                        <Text style={styles.subtitle}>
-                          {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
-                        </Text>
-                        <Text style={styles.category}>{item.category}</Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => navigation.navigate('Detail', { wisata: item })}
-                        style={styles.detailButton}
-                      >
-                        <Text style={styles.detailButtonText}>Detail</Text>
-                      </TouchableOpacity>
-                    </View>
+            contentContainerStyle={{ paddingBottom: 8, marginTop: 16 }}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <ImageWithFallback uri={item.image} style={styles.image} />
+                <View style={styles.cardContent}>
+                  <View style={styles.info}>
+                    <Text style={styles.title}>{item.name}</Text>
+                    <Text style={styles.price}>
+                      Rp {Number(item.ticketPrice).toLocaleString('id-ID')}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                      {item.location} • ★ {item.rating} ({item.reviewCount} ulasan)
+                    </Text>
+                    <Text style={styles.category}>{item.category}</Text>
                   </View>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Detail', { wisata: item })}
+                    style={styles.detailButton}
+                  >
+                    <Text style={styles.detailButtonText}>Detail</Text>
+                  </TouchableOpacity>
                 </View>
-              );
-            }}
+              </View>
+            )}
           />
         )}
       </>
     );
   };
+  
   
   
 
@@ -658,20 +647,35 @@ const styles = StyleSheet.create({
 
   // Filter Card
   filterCard: {
-    width: 140,
+    width: 190,
+    height: 130,
     backgroundColor: '#fff',
     borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 5,
+    marginRight: 12,
+    elevation: 4, // untuk Android shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    padding: 8,
   },
+  
   filterCardImage: {
     width: '100%',
-    height: 100,
-    backgroundColor: '#ccc',
+    height: 80,
+    borderRadius: 8,
+    resizeMode: 'cover',
+    marginBottom: 1,
   },
+  
   filterCardText: {
-    padding: 8,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     textAlign: 'center',
+    color: '#333',
   },
+  
+
 });
