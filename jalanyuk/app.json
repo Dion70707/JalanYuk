@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/jalanyuk.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0043A4" 
+      "backgroundColor": "#0043A4"
     },
     "ios": {
       "supportsTablet": true
@@ -22,10 +22,16 @@
         "foregroundImage": "./assets/jalanyuk.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.ridhor11.jalanyuk"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a4d65bbf-2ebf-4cc2-a8dd-51e4ddb8734b"
+      }
     }
   }
 }

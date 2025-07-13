@@ -12,7 +12,7 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { getAllWisata, getAllKota } from '../API';
+import { getAllWisata } from '../API';
 
 const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
 const FALLBACK_IMAGE = 'http://172.20.10.3:8080';
@@ -40,38 +40,35 @@ const KotaScreen = ({ navigation }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [wisataRes, kotaRes] = await Promise.all([
-        getAllWisata(),
-        getAllKota(),
-      ]);
+      const wisataRes = await getAllWisata();
 
-      // Buat map dari id_kota ke provinsi
-      const provinsiMap = new Map();
-      kotaRes.forEach((k) => {
-        if (k.id && k.provinsi) {
-          provinsiMap.set(k.id, k.provinsi.trim());
+      // Hitung jumlah provinsi dari alamat
+      const countMap = {};
+      wisataRes.forEach((item) => {
+        const alamat = item.alamat || '';
+        const prov = alamat.split(',').pop()?.trim();
+        if (prov) {
+          countMap[prov] = (countMap[prov] || 0) + 1;
         }
       });
 
-      // Ambil daftar provinsi unik (maks. 5)
-      const uniqueProvinsi = Array.from(
-        new Set(kotaRes.map((k) => k.provinsi?.trim()).filter(Boolean))
-      );
-      const limitedProvinsi = uniqueProvinsi.slice(0, 5);
+      // Ambil top 5 provinsi berdasarkan jumlah kemunculan
+      const topProvinsi = Object.entries(countMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([prov], i) => ({ id: i + 1, provinsi: prov }));
 
-      const provinsiListFinal = [
-        { id: 0, provinsi: 'Semua' },
-        ...limitedProvinsi.map((nama, i) => ({ id: i + 1, provinsi: nama })),
-      ];
-      setProvinsiList(provinsiListFinal);
+      setProvinsiList([{ id: 0, provinsi: 'Semua' }, ...topProvinsi]);
 
       // Mapping data wisata
       const mappedWisata = wisataRes.map((item) => {
-        const provinsi = provinsiMap.get(item.id_kota) || 'Tidak Diketahui';
+        const alamat = item.alamat || 'Tidak Diketahui';
+        const provinsiDariAlamat = alamat.split(',').pop()?.trim() || 'Tidak Diketahui';
+
         return {
           id: item.id,
           name: item.nama_wisata || 'Tanpa Nama',
-          location: provinsi,
+          location: alamat,
           rating: item.rating_rata ?? 0,
           reviewCount: item.jumlah_review ?? 0,
           category: item.kategori || 'Kategori tidak tersedia',
@@ -82,7 +79,7 @@ const KotaScreen = ({ navigation }) => {
           latitude: parseFloat(item.koordinat_lat) || 0,
           longitude: parseFloat(item.koordinat_lng) || 0,
           ticketPrice: item.harga_tiket || 0,
-          provinsi: provinsi,
+          provinsi: provinsiDariAlamat,
         };
       });
 
@@ -162,12 +159,12 @@ const KotaScreen = ({ navigation }) => {
         showsHorizontalScrollIndicator={false}
         style={styles.kotaScroll}
       >
-        {provinsiList.map((item, index) => (
+        {provinsiList.map((item) => (
           <TouchableOpacity
-            key={`${item.provinsi}-${index}`}
+            key={item.id}
             style={[
               styles.kotaButton,
-              selectedProvinsi.toLowerCase() === item.provinsi?.toLowerCase() &&
+              selectedProvinsi.toLowerCase() === item.provinsi.toLowerCase() &&
                 styles.kotaButtonActive,
             ]}
             onPress={() => setSelectedProvinsi(item.provinsi)}
@@ -175,7 +172,7 @@ const KotaScreen = ({ navigation }) => {
             <Text
               style={[
                 styles.kotaText,
-                selectedProvinsi.toLowerCase() === item.provinsi?.toLowerCase() &&
+                selectedProvinsi.toLowerCase() === item.provinsi.toLowerCase() &&
                   styles.kotaTextActive,
               ]}
             >
@@ -184,10 +181,6 @@ const KotaScreen = ({ navigation }) => {
           </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <Text style={{ padding: 10 }}>
-        Menampilkan: {selectedProvinsi} ({filteredData.length} tempat wisata)
-      </Text>
 
       {loading ? (
         <ActivityIndicator size="large" color="#00aa13" />
