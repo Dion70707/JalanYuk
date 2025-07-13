@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const BASE_URL = 'http://10.1.49.74:8080';
+const BASE_URL = 'http://172.20.10.3:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -312,7 +312,7 @@ export const togglePenggunaStatus = async (id, status) => {
 
 const handleSelesaikanPemesanan = async (order) => {
   try {
-    const response = await axios.put('http://10.1.49.74:8080/trspemesanan', {
+    const response = await axios.put('http://172.20.10.3:8080/trspemesanan', {
       ...order,
       status: 'Selesai', // opsional, karena backend juga override
     });
@@ -351,7 +351,7 @@ export const postPemesanan = async (payload) => {
 
 const fetchTransaksiById = async (id) => {
   try {
-    const response = await axios.get(`http://10.1.49.74:8080/trspemesanan?id=${id}`);
+    const response = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${id}`);
     return response.data; // diasumsikan backend mengembalikan objek TrsPemesanan
   } catch (error) {
     console.error('Gagal ambil data transaksi:', error);

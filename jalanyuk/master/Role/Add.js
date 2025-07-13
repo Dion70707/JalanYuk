@@ -23,7 +23,7 @@ const Add = ({ route }) => {
 
   const handleSave = async () => {
     if (!roleName.trim()) {
-      Alert.alert('Validation', 'Role name cannot be empty.');
+      Alert.alert('Validation', 'Data role tidak boleh kosong.');
       return;
     }
 
@@ -35,7 +35,7 @@ const Add = ({ route }) => {
 
     try {
       await createRole(newRole);
-      navigation.navigate('RoleIndex', { showSuccessMessage: true }); // ✅ trigger notifikasi
+      navigation.navigate('RoleIndex', { showSuccessMessage: true }); 
     } catch (error) {
       Alert.alert('Error', 'Failed to add role.');
     }

@@ -17,6 +17,7 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+
 import {
   getAllWisata,
   getAllPemesanan,
@@ -31,14 +32,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import { Feather } from '@expo/vector-icons';
+import FavoritComponent from './FavoritScreen';
+
 
 import { FontAwesome } from '@expo/vector-icons';
 
 import * as MediaLibrary from 'expo-media-library';
 
 
-const IMAGE_BASE_URL = 'http://10.1.49.74:8080';
-const FALLBACK_IMAGE = 'http://10.1.49.74:8080';
+const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const FALLBACK_IMAGE = 'http://172.20.10.3:8080';
 
 
 const ImageWithFallback = ({ uri, style }) => {
@@ -60,8 +63,16 @@ const TABS = [
   { key: 'Profile', label: 'Profile', icon: 'user' },
 ];
 
+const FILTER_CAROUSEL = [
+  { id: 'top-rating', label: 'Top Rating', target: 'TopRatingScreen' },
+  { id: 'termurah', label: 'Termurah', target: 'TermurahScreen' },
+  { id: 'provinsi', label: 'Provinsi', target: 'KotaScreen' },
+];
+
+
 export default function HomeScreen({ navigation }) {
   const [search, setSearch] = useState('');
+  const [favoritData, setFavoritData] = useState('');
   const [selectedTab, setSelectedTab] = useState('Beranda');
   const [wisataList, setWisataList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,44 +91,44 @@ export default function HomeScreen({ navigation }) {
 
 
   const fetchWisataData = async () => {
-  try {
-    setLoading(true);
-    const response = await getAllWisata();
-    const data = Array.isArray(response) ? response : [];
+    try {
+      setLoading(true);
+      const response = await getAllWisata();
+      const data = Array.isArray(response) ? response : [];
 
-    const mappedData = await Promise.all(
-      data.map((item) => {
-        const imageUrl = item.id_galeri
-          ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
-          : FALLBACK_IMAGE;
+      const mappedData = await Promise.all(
+        data.map((item) => {
+          const imageUrl = item.id_galeri
+            ? `${IMAGE_BASE_URL}/galeri/${item.id_galeri}/image`
+            : FALLBACK_IMAGE;
 
-        // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
-        const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
+          // Ekstrak kota dari alamat (misalnya setelah koma terakhir)
+          const kota = item.alamat?.split(',').pop()?.trim() || 'Tidak Diketahui';
 
-        return {
-          id: item.id,
-          name: item.nama_wisata || 'Tanpa Nama',
-          location: kota, // Ganti alamat dengan nama kota
-          rating: item.rating_rata ?? 0,
-          reviewCount: item.jumlah_review ?? 0,
-          category: item.kategori || 'Kategori tidak tersedia',
-          description: item.deskripsi || '',
-          image: imageUrl,
-          latitude: parseFloat(item.koordinat_lat) || 0,
-          longitude: parseFloat(item.koordinat_lng) || 0,
-          ticketPrice: item.harga_tiket || 0,
-          kota: kota,
-        };
-      })
-    );
+          return {
+            id: item.id,
+            name: item.nama_wisata || 'Tanpa Nama',
+            location: kota,
+            rating: item.rating_rata ?? 0,
+            reviewCount: item.jumlah_review ?? 0,
+            category: item.kategori || 'Kategori tidak tersedia',
+            description: item.deskripsi || '',
+            image: imageUrl,
+            latitude: parseFloat(item.koordinat_lat) || 0,
+            longitude: parseFloat(item.koordinat_lng) || 0,
+            ticketPrice: item.harga_tiket || 0,
+            kota: kota,
+          };
+        })
+      );
 
-    setWisataList(mappedData);
-  } catch (error) {
-    console.error('Gagal memuat data wisata:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+      setWisataList(mappedData);
+    } catch (error) {
+      console.error('Gagal memuat data wisata:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const fetchData = async () => {
@@ -176,11 +187,11 @@ export default function HomeScreen({ navigation }) {
   };
 
   useEffect(() => {
-  fetchWisataData();
-  fetchMyOrders();
-  fetchData();
-  loadFavorites(); // Tambahkan ini
-}, []);
+    fetchWisataData();
+    fetchMyOrders();
+    fetchData();
+    loadFavorites(); // Tambahkan ini
+  }, []);
 
 
   useEffect(() => {
@@ -193,117 +204,114 @@ export default function HomeScreen({ navigation }) {
   }, [selectedTab]);
 
   const loadFavorites = async () => {
-  try {
-    const res = await getFavoritList();
-    const userId = await AsyncStorage.getItem('userId');
-    if (!userId) return;
-    console.log(res.data)
+    try {
+      const res = await getFavoritList();
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+      console.log(res.data)
 
-    const data = res.data || [];
+      const data = res.data || [];
 
-    const userFavorit = data.filter(item => item.idPengguna === parseInt(userId));
-    
-    console.log("🔥 favoritData setelah load:", userFavorit);
-setFavoritData(userFavorit);
+      const userFavorit = data.filter(item => item.idPengguna === parseInt(userId));
 
-  } catch (error) {
-    console.error('Gagal mengambil data favorit:', error);
-  }
-};
+      console.log("🔥 favoritData setelah load:", userFavorit);
+      setFavoritData(userFavorit);
 
-
-const getFavoritByWisataId = (idWisata) => {
-  if (!favoritData || !Array.isArray(favoritData)) {
-    console.warn('❌ favoritData belum tersedia atau bukan array.');
-    return null;
-  }
-
-  if (!user?.id) {
-    console.warn('❌ ID user tidak ditemukan.');
-    return null;
-  }
-
-  console.log(favoritData)
-  
-
-  const result = favoritData.find(
-    (item) => item.idWisata === idWisata && item.idPengguna === user.id
-  );
+    } catch (error) {
+      console.error('Gagal mengambil data favorit:', error);
+    }
+  };
 
 
-  console.log(`🔍 Cek favorit untuk wisata ${idWisata} oleh user ${user.id}:`, result);
-  return result;
-};
+  const getFavoritByWisataId = (idWisata) => {
+    if (!favoritData || !Array.isArray(favoritData)) {
+      console.warn('❌ favoritData belum tersedia atau bukan array.');
+      return null;
+    }
+
+    if (!user?.id) {
+      console.warn('❌ ID user tidak ditemukan.');
+      return null;
+    }
+
+    console.log(favoritData)
+
+
+    const result = favoritData.find(
+      (item) => item.idWisata === idWisata && item.idPengguna === user.id
+    );
+
+
+    console.log(`🔍 Cek favorit untuk wisata ${idWisata} oleh user ${user.id}:`, result);
+    return result;
+  };
 
 
   const toggleFavorite = async (idWisata) => {
-  const userId = user?.id;
-  if (!userId) return;
+    const userId = user?.id;
+    if (!userId) return;
 
-  const existing = getFavoritByWisataId(idWisata);
+    const existing = getFavoritByWisataId(idWisata);
 
-   try {
-    if (existing) {
-      const updatedStatus = existing.favorit === 1 ? 0 : 1;
+    try {
+      if (existing) {
+        const updatedStatus = existing.favorit === 1 ? 0 : 1;
 
-      await fetch('http://10.1.49.74:8080/TrsFavorit', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          idPengguna: userId,
-          idWisata: idWisata,
-          favorit: updatedStatus,
-        }),
-      });
-    } else {
-      await fetch('http://10.1.49.74:8080/TrsFavorit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          idPengguna: userId,
-          idWisata: idWisata,
-          favorit: 1,
-        }),
-      });
+        await fetch('http://172.20.10.3:8080/TrsFavorit', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            idPengguna: userId,
+            idWisata: idWisata,
+            favorit: updatedStatus,
+          }),
+        });
+      } else {
+        await fetch('http://172.20.10.3:8080/TrsFavorit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            idPengguna: userId,
+            idWisata: idWisata,
+            favorit: 1,
+          }),
+        });
+      }
+
+      await loadFavorites(); // refresh ulang setelah update
+    } catch (err) {
+      console.error('Gagal mengubah status favorit:', err);
+      Alert.alert('Error', 'Terjadi kesalahan saat mengubah favorit.');
     }
-
-    await loadFavorites(); // refresh ulang setelah update
-  } catch (err) {
-    console.error('Gagal mengubah status favorit:', err);
-    Alert.alert('Error', 'Terjadi kesalahan saat mengubah favorit.');
-  }
-};
+  };
 
 
-  
+
 
   const filteredData = wisataList
-  .filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
-  )
-  .sort((a, b) => {
-    const kotaA = a.kota.toLowerCase();
-    const kotaB = b.kota.toLowerCase();
+    .filter((item) =>
+      item.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      const kotaA = a.kota.toLowerCase();
+      const kotaB = b.kota.toLowerCase();
+      if (kotaA < kotaB) return -1;
+      if (kotaA > kotaB) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
-    if (kotaA < kotaB) return -1;
-    if (kotaA > kotaB) return 1;
-
-    // Jika kota sama, urutkan berdasarkan nama wisata
-    return a.name.localeCompare(b.name);
-  });
 
 
 
   const handleTabPress = (tabKey) => {
     setSelectedTab(tabKey);
-    if (tabKey === 'Favorit') navigation.navigate('FavoritScreen');
-    else if (tabKey === 'Profile') navigation.navigate('Profile');
   };
-  
+
+
 
   const renderQRString = (order) => {
     return `Nama: ${user?.nama_lengkap}\nWisata: ${order.nama_wisata}\nJumlah: ${order.jumlah_tiket}\nTotal: Rp${order.total_harga}\nTanggal: ${order.tanggal_pemesanan}`;
@@ -329,88 +337,54 @@ const getFavoritByWisataId = (idWisata) => {
     }
   };
 
-  
+
   const filteredList = wisataList.filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase())
   );
-  
-  
-  const FALLBACK_IMAGE = 'https://example.com/default-image.jpg'; // Ganti dengan image default sesuai kebutuhan
+
 
   const renderBeranda = () => {
-  const filteredData = wisataList
-    .filter((item) =>
-      item.name.toLowerCase().includes(search.toLowerCase())
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
+    const topRatingItem = [...wisataList].sort((a, b) => b.rating - a.rating)[0];
+    const termurahItem = [...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0];
+    const kotaItem = [...wisataList].find((item) => item.kota);
 
-  const topRatingItem = [...wisataList].sort((a, b) => b.rating - a.rating)[0];
-  const termurahItem = [...wisataList].sort((a, b) => a.ticketPrice - b.ticketPrice)[0];
-  const kotaItem = [...wisataList].find((item) => item.kota);
+    return (
+      <>
+        <TextInput
+          placeholder="Cari tempat wisata..."
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
+          placeholderTextColor="#999"
+        />
 
-  const topRatingImage = topRatingItem?.image || FALLBACK_IMAGE;
-  const termurahImage = termurahItem?.image || FALLBACK_IMAGE;
-  const kotaImage = kotaItem?.image || FALLBACK_IMAGE;
-
-  return (
-    <>
-      <Text style={styles.header}>Wisata Indonesia</Text>
-      <TextInput
-        placeholder="Cari tempat wisata..."
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-        placeholderTextColor="#999"
-      />
-
-      {/* Filter Gambar */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginBottom: 0 }}
-        contentContainerStyle={{ paddingHorizontal: 12 }}
-      >
-        <TouchableOpacity
-          style={[styles.filterCard, { marginRight: 12 }]}
-          onPress={() => navigation.navigate('TopRatingScreen', { data: wisataList })}
-        >
-          <ImageWithFallback uri={topRatingImage} style={styles.filterCardImage} />
-          <Text style={styles.filterCardText}>Top Rating</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterCard, { marginRight: 12 }]}
-          onPress={() => navigation.navigate('TermurahScreen', { data: wisataList })}
-        >
-          <ImageWithFallback uri={termurahImage} style={styles.filterCardImage} />
-          <Text style={styles.filterCardText}>Termurah</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.filterCard}
-          onPress={() => navigation.navigate('KotaScreen', { data: wisataList })}
-        >
-          <ImageWithFallback uri={kotaImage} style={styles.filterCardImage} />
-          <Text style={styles.filterCardText}>Provinsi</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* List Wisata */}
-      {loading ? (
-        <ActivityIndicator size="large" color="#007bff" />
-      ) : (
         <FlatList
-          data={filteredData}
-          keyExtractor={(item) => item.id?.toString()}
-          contentContainerStyle={{ paddingBottom: 80 }}
-          renderItem={({ item, index }) => {
-            const isFirstItem = index === 0;
-            const isNewCity = isFirstItem || item.kota !== filteredData[index - 1].kota;
+          data={FILTER_CAROUSEL}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 12 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.filterCard}
+              onPress={() => navigation.navigate(item.target, { data: wisataList })}
+            >
+              <Text style={styles.filterCardText}>{item.label}</Text>
+            </TouchableOpacity>
+          )}
+        />
 
-            return (
-              <View key={item.id}>
-                {isNewCity && <Text style={styles.cityHeader}>{item.kota}</Text>}
-                <View style={styles.card}>
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#007bff" />
+        ) : (
+          <FlatList
+            data={filteredData}
+            keyExtractor={(item) => item.id?.toString()}
+            contentContainerStyle={{ paddingBottom: 120, paddingTop: 0 }}
+            renderItem={({ item, index }) => {
+              return (
+                <View key={item.id} style={styles.card}>
                   <ImageWithFallback uri={item.image} style={styles.image} />
                   <View style={styles.cardContent}>
                     <View style={styles.info}>
@@ -447,18 +421,18 @@ const getFavoritByWisataId = (idWisata) => {
                     </View>
                   </View>
                 </View>
-              </View>
-            );
-          }}
-        />
-      )}
-    </>
-  );
-};
+              );
+            }}
+          />
+        )}
+      </>
+    );
+  };
 
-  
-  
-  
+
+
+
+
 
   const renderMyOrder = () => (
     <ScrollView
@@ -570,6 +544,8 @@ const getFavoritByWisataId = (idWisata) => {
         {selectedTab === 'Beranda' && renderBeranda()}
         {selectedTab === 'MyOrder' && renderMyOrder()}
         {selectedTab === 'Profile' && renderProfile()}
+        {selectedTab === 'Favorit' && <FavoritComponent navigation={navigation} />}
+
       </View>
 
       <View style={styles.tabBar}>
@@ -618,6 +594,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 12,
+    paddingTop: 10,
   },
   header: {
     fontSize: 24,
@@ -629,19 +606,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     backgroundColor: '#fff',
+    marginBottom: 8,
   },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    marginBottom: 16,
-    padding: 16,
+    marginBottom: 12,
+    padding: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 3,
+    minHeight: 250, // tambahkan ini agar tinggi minimum konsisten
   },
   profileCard: {
     backgroundColor: '#fff',
@@ -658,17 +637,25 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  image: { width: '100%', height: 180, backgroundColor: '#ddd' },
+  image: {
+    width: '100%',
+    height: 160,
+    backgroundColor: '#eee',
+    borderRadius: 10,
+  },
   cardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
+    alignItems: 'flex-start',
+    marginTop: 10,
   },
+
   info: {
     flex: 1,
-    paddingRight: 10,
+    paddingRight: 8,
+    minHeight: 100,
   },
+
   title: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -828,44 +815,42 @@ const styles = StyleSheet.create({
 
   // Filter Card
   filterCard: {
-    width: 190,
-    height: 130,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginRight: 12,
-    elevation: 4, // untuk Android shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    width: 110,
+    height: 36,
+    backgroundColor: '#007bff',
+    borderRadius: 10,
+    marginRight: 8,
+    justifyContent: 'center', // pastikan text center
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    padding: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  
-  filterCardImage: {
-    width: '100%',
-    height: 80,
-    borderRadius: 8,
-    resizeMode: 'cover',
-    marginBottom: 1,
-  },
-  
+
+
+
   filterCardText: {
-    fontSize: 14,
+    paddingVertical: 10,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
-    color: '#333',
+    color: '#fff',
   },
-  actionRow: {
-  flexDirection: 'row',
-  justifyContent: 'flex-end',
-  alignItems: 'center',
-  marginTop: 10,
-},
 
-favoriteIconInline: {
-  marginRight: 10,
-},
+
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+
+
+  favoriteIconInline: {
+    marginRight: 10,
+  },
 
 });

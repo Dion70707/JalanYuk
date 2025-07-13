@@ -12,7 +12,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getImageUrlById, getAllWisata, getAllReviews, getAllPenggunas } from '../API';
 
-const IMAGE_BASE_URL = 'http://10.1.49.74:8080';
+const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
 
 const ImageWithFallback = ({ uri, style }) => {

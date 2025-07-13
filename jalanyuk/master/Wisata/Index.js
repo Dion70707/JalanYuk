@@ -10,7 +10,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
-import { getAllWisata, deleteWisata } from '../../API'; 
+import { getAllWisata, deleteWisata } from '../../API';
 import { Ionicons } from '@expo/vector-icons';
 import Tab from '../../components/Tab';
 import Notifikasi from '../../components/Notifikasi';
@@ -32,8 +32,8 @@ const Index = () => {
       const result = Array.isArray(data)
         ? data
         : Array.isArray(data?.data)
-        ? data.data
-        : [];
+          ? data.data
+          : [];
       setWisataList(result);
     } catch (error) {
       console.log('Error fetching wisata:', error);
@@ -122,7 +122,10 @@ const Index = () => {
       ) : (
         <FlatList
           data={filteredWisata}
-          keyExtractor={(item, index) => item?.id?.toString() ?? `key-${index}`}
+          keyExtractor={(item, index) =>
+            item && item.id != null ? item.id.toString() : `fallback-key-${index}`
+          }
+
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 120 }}
         />

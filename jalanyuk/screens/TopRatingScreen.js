@@ -8,7 +8,7 @@ import {
   Image,
 } from 'react-native';
 
-const FALLBACK_IMAGE = 'https:10.1.56.34:8080';
+const FALLBACK_IMAGE = 'https:172.20.10.3:8080';
 
 const ImageWithFallback = ({ uri, style }) => {
   const [error, setError] = useState(false);
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
       marginTop: 4,
     },
     detailButton: {
-      backgroundColor: '#3498db',
+      backgroundColor: '#007bff',
       paddingVertical: 8,
       paddingHorizontal: 14,
       borderRadius: 6,

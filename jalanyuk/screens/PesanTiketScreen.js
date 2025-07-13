@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { postPemesanan, getAllWisata, fetchTransaksiById, handleSelesaikanPemesanan } from '../API';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
@@ -19,6 +20,7 @@ import axios from 'axios';
 
 export default function PemesananScreen({ route }) {
   const { wisata } = route.params;
+  const navigation = useNavigation();
 
   const [jumlahTiket, setJumlahTiket] = useState('');
   const [totalHarga, setTotalHarga] = useState(0);
@@ -255,7 +257,7 @@ export default function PemesananScreen({ route }) {
 
 
   const handleSelesaikan = async () => {
-    console.log('✔️ Tombol Selesaikan ditekan');
+    
 
     if (!transaksiData?.id || transaksiData.id === 0) {
       console.log('❌ Data transaksi tidak valid:', transaksiData);
@@ -266,7 +268,6 @@ export default function PemesananScreen({ route }) {
     try {
       setLoading(true);
 
-      // Ambil data transaksi terbaru dari backend
       const { data: existingData } = await axios.get(`http://172.20.10.3:8080/trspemesanan?id=${transaksiData.id}`);
 
       if (!existingData?.id) {
@@ -275,10 +276,14 @@ export default function PemesananScreen({ route }) {
         return;
       }
 
-      // Siapkan payload update status
+      const jumlahBaru = parseInt(jumlahTiket);
+      const totalBaru = jumlahBaru * hargaTiket;
+
       const updatePayload = {
         ...existingData,
         status: "Selesai",
+        jumlah_tiket: jumlahBaru,
+        total_harga: totalBaru,
       };
 
       console.log('🚀 Mengirim permintaan update status:', updatePayload);
@@ -288,7 +293,16 @@ export default function PemesananScreen({ route }) {
       if (response?.result === 200) {
         console.log('✅ Status berhasil diperbarui:', response);
         Alert.alert('✅ Berhasil', 'Pemesanan telah diselesaikan!');
-        setTransaksiData(prev => ({ ...prev, status: 'Selesai' }));
+
+
+        setTransaksiData(prev => ({
+          ...prev,
+          status: 'Selesai',
+          jumlah_tiket: jumlahBaru,
+          total_harga: totalBaru,
+        }));
+
+        setShowQR(true);
       } else {
         console.log('❌ Gagal memperbarui status:', response);
         Alert.alert('❌ Gagal', response?.message || 'Gagal menyelesaikan pemesanan.');
@@ -305,6 +319,7 @@ export default function PemesananScreen({ route }) {
       setLoading(false);
     }
   };
+
 
 
 
@@ -369,7 +384,7 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
           />
 
           <Text style={styles.label}>Total Harga:</Text>
-          <Text style={styles.total}>Rp {totalHarga}</Text>
+          <Text style={styles.total}>Rp {totalHarga.toLocaleString('id-ID')}</Text>
         </>
       )}
 
@@ -377,9 +392,12 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
 
       {(!transaksiData || (transaksiData.status !== 'Pending' && transaksiData.status !== 'Selesai')) && (
         <TouchableOpacity
-          style={[styles.button, loading && { backgroundColor: '#999' }]}
+          style={[
+            styles.button,
+            (loading || !jumlahTiket || parseInt(jumlahTiket) <= 0) && { backgroundColor: '#999' },
+          ]}
           onPress={handlePemesanan}
-          disabled={loading}
+          disabled={loading || !jumlahTiket || parseInt(jumlahTiket) <= 0}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
@@ -388,6 +406,7 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
           )}
         </TouchableOpacity>
       )}
+
 
 
       {showQR && transaksiData && (
@@ -416,12 +435,15 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
 
                 <View style={styles.strukRow}>
                   <Text style={styles.strukLabel}>Jumlah</Text>
-                  <Text style={styles.strukValue}>{transaksiData.jumlah_tiket}</Text>
+                  <Text style={styles.strukValue}>{transaksiData.jumlah_tiket} Tiket</Text>
                 </View>
 
                 <View style={styles.strukRow}>
                   <Text style={styles.strukLabel}>Total</Text>
-                  <Text style={styles.strukValue}>Rp {transaksiData.total_harga}</Text>
+                  <Text style={styles.strukValue}>
+                    Rp {transaksiData.total_harga.toLocaleString('id-ID')}
+                  </Text>
+
                 </View>
 
                 <View style={styles.strukRow}>
@@ -463,17 +485,20 @@ Tanggal: ${transaksiData.tanggal_pemesanan}`;
           )}
 
           {transaksiData.status === 'Pending' && (
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: 'orange', marginTop: 20 }]}
-            onPress={handleSelesaikan}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Konfirmasi Pemesanan</Text>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                (loading || !jumlahTiket || parseInt(jumlahTiket) <= 0) && { backgroundColor: '#999' },
+              ]}
+              onPress={handleSelesaikan}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Konfirmasi Pemesanan</Text>
+              )}
+            </TouchableOpacity>
           )}
 
         </View>

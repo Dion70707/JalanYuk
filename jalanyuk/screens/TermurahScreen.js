@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { getAllWisata } from '../API';
 
-const IMAGE_BASE_URL = 'http://10.1.56.34:8080';
-const FALLBACK_IMAGE = 'http://10.1.56.34:8080';
+const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const FALLBACK_IMAGE = 'http://172.20.10.3:8080';
 
 const ImageWithFallback = ({ uri, style }) => {
   const [error, setError] = useState(false);
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   detailButton: {
-    backgroundColor: '#00aa13',
+    backgroundColor: '#007bff',
     paddingVertical: 6,
     paddingHorizontal: 16,
     borderRadius: 8,

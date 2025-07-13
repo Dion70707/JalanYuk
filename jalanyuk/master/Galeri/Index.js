@@ -15,7 +15,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { getAllGaleri, deleteGaleri } from '../../API';
 
-const IMAGE_BASE_URL = 'http://10.1.56.34:8080';
+const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
 
 const Index = () => {
   const [galeriList, setGaleriList] = useState([]);
