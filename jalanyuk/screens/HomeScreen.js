@@ -27,7 +27,7 @@ import { FontAwesome } from '@expo/vector-icons';
 
 import * as MediaLibrary from 'expo-media-library';
 
-const IMAGE_BASE_URL = 'http://172.20.10.3:8080';
+const IMAGE_BASE_URL = 'http://172.20.10.9:8080';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/400x200.png?text=No+Image';
 
 const ImageWithFallback = ({ uri, style }) => {
